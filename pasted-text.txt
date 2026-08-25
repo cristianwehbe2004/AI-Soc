@@ -1,0 +1,3113 @@
+# AI-SOC — AI-Powered Security Operations Center
+
+## 1. Project Goal
+
+Build a production-style Security Operations Center platform that:
+
+1. Ingests security telemetry.
+2. Normalizes events into a common schema.
+3. Detects suspicious behavior using deterministic rules.
+4. Correlates related events into incidents.
+5. Uses machine learning to detect anomalous behavior.
+6. Maps suspicious behavior to MITRE ATT&CK techniques.
+7. Uses LangGraph-powered AI investigation workflows to analyze incidents.
+8. Produces human-readable explanations and remediation recommendations.
+9. Provides a real-time SOC dashboard.
+10. Runs locally with Docker Compose.
+11. Deploys cheaply to AWS using primarily one EC2 instance.
+12. Provides measurable security/ML/system benchmarks.
+
+The application is a defensive cybersecurity project. Attack telemetry should come from public datasets, synthetic event generation, or an isolated lab environment owned by the developer.
+
+---
+
+# 2. Core Technology Stack
+
+## Backend
+
+* Python 3.12+
+* FastAPI
+* Pydantic
+* SQLAlchemy 2
+* Alembic
+* PostgreSQL
+* Redis
+* Celery, Dramatiq, RQ, or a custom Redis-backed worker
+* WebSockets
+* pytest
+
+Preferred worker implementation for MVP:
+
+**Redis + RQ**
+
+Reason:
+
+* simple
+* lightweight
+* easy to debug
+* sufficient for portfolio architecture
+* cheaper than managed queue infrastructure
+
+Do not introduce Kafka initially.
+
+---
+
+## AI
+
+* LangGraph as a Python library
+* LangChain only where useful
+* provider abstraction for LLMs
+* local Ollama during development where practical
+* external API/provider optionally for production demos
+
+No LangGraph Studio dependency.
+
+---
+
+## Machine Learning
+
+Initial:
+
+* pandas
+* NumPy
+* scikit-learn
+* joblib
+
+Models:
+
+* Isolation Forest
+* Random Forest or XGBoost as optional supervised comparison
+
+Later optional:
+
+* PyTorch
+* Autoencoder
+
+Do not start with deep learning.
+
+---
+
+## Frontend
+
+* Next.js
+* TypeScript
+* React
+* Tailwind CSS
+* charting library such as Recharts
+* WebSocket client
+
+---
+
+## Infrastructure
+
+Local:
+
+* Docker
+* Docker Compose
+
+Production:
+
+* AWS EC2
+* Docker Compose
+* Nginx
+* HTTPS
+* PostgreSQL either:
+
+  * Docker container initially
+  * RDS later if desired
+* Redis container initially
+
+Optional:
+
+* S3 for model artifacts or archived telemetry
+
+---
+
+# 3. High-Level Architecture
+
+```text
+                         ┌─────────────────────────┐
+                         │      Next.js UI        │
+                         │     SOC Dashboard      │
+                         └────────────┬────────────┘
+                                      │
+                              REST + WebSocket
+                                      │
+                         ┌────────────▼────────────┐
+                         │        FastAPI         │
+                         │       API Layer        │
+                         └────────────┬────────────┘
+                                      │
+                ┌─────────────────────┼─────────────────────┐
+                │                     │                     │
+                ▼                     ▼                     ▼
+        Event Ingestion        Incident API          Authentication
+                │
+                ▼
+       Event Normalization
+                │
+                ▼
+        Detection Engine
+        ┌───────┴────────┐
+        │                │
+        ▼                ▼
+ Rule Detection     ML Detection
+        │                │
+        └───────┬────────┘
+                ▼
+         Event Correlation
+                │
+                ▼
+         Incident Engine
+                │
+                ▼
+            Redis Queue
+                │
+                ▼
+         Investigation Worker
+                │
+                ▼
+            LangGraph
+      ┌─────────┼────────────┐
+      ▼         ▼            ▼
+  Timeline    MITRE      Risk Analysis
+  Analysis    Mapping
+      └─────────┼────────────┘
+                ▼
+          AI Synthesis
+                │
+                ▼
+         PostgreSQL Storage
+```
+
+---
+
+# 4. Development Principle
+
+Codex must implement the system incrementally.
+
+The priority order is:
+
+```text
+Backend foundation
+        ↓
+Security events
+        ↓
+Detection rules
+        ↓
+Incident correlation
+        ↓
+Testing
+        ↓
+Machine learning
+        ↓
+AI investigation
+        ↓
+Frontend dashboard
+        ↓
+Real-time streaming
+        ↓
+Deployment
+        ↓
+Hardening + benchmarking
+```
+
+Do NOT begin by creating AI agents.
+
+Do NOT begin by building a polished dashboard.
+
+Do NOT implement microservices initially.
+
+Build a modular monolith first.
+
+---
+
+# PHASE 0 — Repository and Engineering Foundation
+
+## Objective
+
+Create a professional repository structure and development environment before implementing features.
+
+## Repository Structure
+
+```text
+ai-soc/
+│
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   ├── core/
+│   │   ├── db/
+│   │   ├── models/
+│   │   ├── schemas/
+│   │   ├── repositories/
+│   │   ├── services/
+│   │   ├── detection/
+│   │   ├── correlation/
+│   │   ├── ml/
+│   │   ├── agents/
+│   │   ├── workers/
+│   │   └── main.py
+│   │
+│   ├── migrations/
+│   ├── tests/
+│   ├── scripts/
+│   ├── Dockerfile
+│   ├── pyproject.toml
+│   └── .env.example
+│
+├── frontend/
+│   ├── app/
+│   ├── components/
+│   ├── lib/
+│   ├── hooks/
+│   ├── types/
+│   └── Dockerfile
+│
+├── ml/
+│   ├── datasets/
+│   ├── notebooks/
+│   ├── experiments/
+│   ├── artifacts/
+│   └── README.md
+│
+├── simulator/
+│   ├── generators/
+│   ├── scenarios/
+│   └── cli.py
+│
+├── infra/
+│   ├── nginx/
+│   └── docker-compose.yml
+│
+├── docs/
+│   ├── architecture/
+│   ├── api/
+│   ├── detection-rules/
+│   └── ml/
+│
+├── .github/
+│   └── workflows/
+│
+├── README.md
+└── Makefile
+```
+
+## Backend dependencies
+
+Set up:
+
+* FastAPI
+* uvicorn
+* SQLAlchemy
+* asyncpg or psycopg
+* Alembic
+* Pydantic Settings
+* Redis
+* pytest
+* pytest-asyncio
+* httpx
+
+## Core configuration
+
+Create:
+
+```text
+app/core/config.py
+```
+
+Configuration should use environment variables.
+
+Example:
+
+```text
+APP_ENV
+DATABASE_URL
+REDIS_URL
+SECRET_KEY
+LLM_PROVIDER
+LLM_API_KEY
+LOG_LEVEL
+```
+
+Never hard-code secrets.
+
+## Health endpoint
+
+Implement:
+
+```http
+GET /api/v1/health
+```
+
+Response:
+
+```json
+{
+  "status": "healthy",
+  "database": "connected",
+  "redis": "connected"
+}
+```
+
+## Logging
+
+Implement structured JSON logging.
+
+Every log should eventually support:
+
+```text
+timestamp
+level
+service
+request_id
+event
+message
+```
+
+## Phase 0 Acceptance Criteria
+
+Phase 0 is complete when:
+
+* FastAPI starts successfully.
+* PostgreSQL connects.
+* Redis connects.
+* Alembic works.
+* `/health` works.
+* backend unit tests execute.
+* Docker Compose starts backend + PostgreSQL + Redis.
+* `.env.example` exists.
+* no secrets are committed.
+
+---
+
+# PHASE 1 — Security Event Ingestion
+
+## Objective
+
+Create the core telemetry pipeline.
+
+This is the first major functional phase.
+
+The SOC should be able to receive normalized security events before ML or AI exists.
+
+---
+
+# 5. Security Event Schema
+
+Create a generic normalized event model.
+
+## Event fields
+
+```text
+id
+event_id
+timestamp
+received_at
+
+source
+source_type
+
+event_type
+category
+
+severity
+
+user_id
+username
+
+source_ip
+destination_ip
+source_port
+destination_port
+
+hostname
+device_id
+
+action
+status
+
+resource
+resource_type
+
+country
+user_agent
+
+bytes_sent
+bytes_received
+
+raw_payload
+
+metadata
+
+created_at
+```
+
+Use JSONB for:
+
+```text
+raw_payload
+metadata
+```
+
+---
+
+# 6. Event Categories
+
+Initial supported categories:
+
+```text
+authentication
+network
+cloud
+application
+file_access
+privilege_change
+process
+api
+```
+
+---
+
+# 7. Event Types
+
+Initial event types:
+
+```text
+login_success
+login_failure
+
+logout
+
+api_request
+api_error
+
+file_access
+file_download
+
+privilege_change
+
+network_connection
+network_scan
+
+resource_access
+
+account_created
+account_deleted
+
+password_changed
+```
+
+---
+
+# 8. Event API
+
+Implement:
+
+```http
+POST /api/v1/events
+```
+
+Example:
+
+```json
+{
+  "timestamp": "2026-08-24T11:30:00Z",
+  "source": "auth-service",
+  "source_type": "application",
+  "event_type": "login_failure",
+  "category": "authentication",
+  "username": "alice",
+  "source_ip": "192.168.1.50",
+  "status": "failed"
+}
+```
+
+Return:
+
+```json
+{
+  "id": "...",
+  "accepted": true
+}
+```
+
+---
+
+Implement bulk ingestion:
+
+```http
+POST /api/v1/events/bulk
+```
+
+This should accept perhaps 1–1000 events per request.
+
+---
+
+Implement:
+
+```http
+GET /api/v1/events
+```
+
+Filtering:
+
+```text
+start_time
+end_time
+event_type
+category
+source_ip
+username
+severity
+limit
+offset
+```
+
+---
+
+Implement:
+
+```http
+GET /api/v1/events/{event_id}
+```
+
+---
+
+# 9. Event Normalization Layer
+
+Do not allow detection rules to operate directly on arbitrary source formats.
+
+Create:
+
+```text
+app/services/event_normalizer.py
+```
+
+Architecture:
+
+```text
+raw log
+   ↓
+source parser
+   ↓
+normalized event
+   ↓
+database
+```
+
+Create adapters such as:
+
+```text
+GenericJSONNormalizer
+AuthLogNormalizer
+CloudTrailNormalizer
+WebAccessNormalizer
+```
+
+Initially implement Generic JSON + synthetic telemetry.
+
+CloudTrail support can come later.
+
+---
+
+# 10. Synthetic Event Simulator
+
+Create a separate simulator.
+
+Purpose:
+
+Generate realistic security telemetry without attacking real infrastructure.
+
+Example command:
+
+```bash
+python -m simulator.cli normal-login
+```
+
+Generate:
+
+```text
+login_success
+login_failure
+api_request
+file_access
+```
+
+Add scenarios.
+
+### Normal user
+
+Generate normal authentication and application events.
+
+### Failed-login burst
+
+Generate many failed logins.
+
+### Credential-compromise simulation
+
+Generate telemetry sequence:
+
+```text
+failed logins
+failed logins
+failed logins
+successful login
+new device
+privilege change
+large resource access
+```
+
+### Suspicious API behavior
+
+Generate:
+
+```text
+rapid requests
+authentication failures
+unusual endpoint access
+```
+
+Do not perform attacks against public systems.
+
+Only generate synthetic telemetry or use an isolated lab.
+
+---
+
+# Phase 1 Acceptance Criteria
+
+The system can:
+
+* ingest one event
+* ingest batches
+* validate invalid events
+* normalize events
+* store them in PostgreSQL
+* query them
+* filter them
+* generate synthetic telemetry
+* handle at least 10,000 synthetic events
+
+Tests must exist for normalization and API validation.
+
+---
+
+# PHASE 2 — Deterministic Detection Engine
+
+## Objective
+
+Detect security threats without AI.
+
+This is essential.
+
+The SOC should still detect attacks if the LLM is unavailable.
+
+---
+
+# 11. Detection Rule Architecture
+
+Create:
+
+```text
+app/detection/
+    base.py
+    engine.py
+    registry.py
+    rules/
+```
+
+Rule interface:
+
+```python
+class DetectionRule:
+    id: str
+    name: str
+    severity: str
+
+    async def evaluate(self, event, context):
+        ...
+```
+
+Detection result:
+
+```text
+matched
+rule_id
+severity
+confidence
+evidence
+metadata
+```
+
+---
+
+# 12. Initial Detection Rules
+
+Implement at least these.
+
+## Rule 001 — Brute Force
+
+Condition:
+
+Multiple login failures from the same source IP inside a defined time window.
+
+Configurable:
+
+```text
+threshold = 10
+window = 60 seconds
+```
+
+---
+
+## Rule 002 — Password Spray
+
+Condition:
+
+One source IP attempts authentication against many usernames.
+
+Example:
+
+```text
+source_ip = same
+unique_users >= threshold
+within 5 minutes
+```
+
+---
+
+## Rule 003 — Impossible Authentication Pattern
+
+For MVP, simulate a simplified version.
+
+Detect:
+
+```text
+same user
+different countries
+very short time interval
+```
+
+Do not attempt precise geospatial travel calculations initially.
+
+---
+
+## Rule 004 — Suspicious Privilege Change
+
+Trigger when:
+
+```text
+privilege_change
+```
+
+occurs shortly after unusual authentication.
+
+---
+
+## Rule 005 — Large Download
+
+Trigger when:
+
+```text
+bytes_received/downloaded > configured threshold
+```
+
+---
+
+## Rule 006 — Login After Brute Force
+
+Correlate:
+
+```text
+many failed logins
+        ↓
+successful login
+```
+
+Raise severity significantly.
+
+---
+
+## Rule 007 — New Device Login
+
+If known-device tracking exists:
+
+```text
+user logs in from previously unseen device
+```
+
+---
+
+# 13. Alert Model
+
+Detection rules generate alerts.
+
+Create table:
+
+```text
+alerts
+```
+
+Fields:
+
+```text
+id
+rule_id
+event_id
+
+title
+description
+
+severity
+confidence
+
+status
+
+source_ip
+username
+
+evidence JSONB
+
+first_seen
+last_seen
+
+created_at
+```
+
+Statuses:
+
+```text
+new
+acknowledged
+investigating
+resolved
+false_positive
+```
+
+---
+
+# 14. Detection Processing
+
+Architecture:
+
+```text
+event
+ ↓
+store event
+ ↓
+enqueue detection task
+ ↓
+worker
+ ↓
+run detection rules
+ ↓
+alerts
+```
+
+Do not block ingestion while expensive detection work executes.
+
+---
+
+# Phase 2 Acceptance Criteria
+
+Synthetic brute-force telemetry should automatically produce an alert.
+
+Tests should cover:
+
+* below threshold → no alert
+* threshold exceeded → alert
+* time-window handling
+* multiple users
+* duplicated events
+* alert evidence
+* severity assignment
+
+At this point the application is already a functional basic SIEM/SOC backend.
+
+---
+
+# PHASE 3 — Incident Correlation Engine
+
+## Objective
+
+Turn individual alerts into meaningful security incidents.
+
+A SOC should not simply show thousands of independent alerts.
+
+---
+
+# 15. Incident Model
+
+Create:
+
+```text
+incidents
+```
+
+Fields:
+
+```text
+id
+title
+description
+
+severity
+status
+
+risk_score
+
+primary_user
+primary_ip
+
+first_seen
+last_seen
+
+alert_count
+event_count
+
+attack_stage
+
+ai_status
+
+created_at
+updated_at
+```
+
+Statuses:
+
+```text
+open
+investigating
+contained
+resolved
+false_positive
+```
+
+---
+
+Create relationships:
+
+```text
+incident_alerts
+incident_events
+```
+
+---
+
+# 16. Initial Correlation Logic
+
+Correlate alerts using:
+
+```text
+same user
+same source IP
+same host
+close timestamp
+similar attack category
+```
+
+Example:
+
+```text
+Brute Force Alert
+        +
+Successful Login Alert
+        +
+Privilege Change Alert
+        +
+Large Download Alert
+        ↓
+Credential Compromise Incident
+```
+
+---
+
+# 17. Risk Scoring
+
+Implement deterministic risk score from 0–100.
+
+Example inputs:
+
+```text
+alert severity
+number of alerts
+rule confidence
+privilege escalation
+sensitive resource access
+known malicious indicators
+ML anomaly score later
+```
+
+Example output:
+
+```text
+0–29    LOW
+30–59   MEDIUM
+60–79   HIGH
+80–100  CRITICAL
+```
+
+Make weights configurable.
+
+---
+
+# 18. Incident API
+
+Implement:
+
+```http
+GET /api/v1/incidents
+GET /api/v1/incidents/{id}
+PATCH /api/v1/incidents/{id}
+GET /api/v1/incidents/{id}/events
+GET /api/v1/incidents/{id}/alerts
+```
+
+---
+
+# Phase 3 Acceptance Criteria
+
+The credential compromise simulation must create:
+
+```text
+1 incident
+multiple correlated alerts
+multiple correlated events
+risk score
+severity
+timeline
+```
+
+Tests must verify correlation behavior.
+
+---
+
+# PHASE 4 — Machine Learning Detection
+
+## Objective
+
+Add anomaly detection to complement deterministic security rules.
+
+The ML system must not replace rule-based detection.
+
+Architecture:
+
+```text
+Rules ───────────────┐
+                     ↓
+                  Incident
+                     ↑
+ML anomaly model ────┘
+```
+
+---
+
+# 19. ML Dataset
+
+Begin with synthetic SOC telemetry.
+
+Optionally incorporate public defensive-security datasets later.
+
+Create feature dataset from normalized events.
+
+Features could include:
+
+```text
+login_hour
+
+failed_login_count_1m
+failed_login_count_5m
+failed_login_count_1h
+
+successful_logins_1h
+
+unique_ips_per_user_1h
+unique_users_per_ip_1h
+
+unique_devices_per_user
+
+api_request_count_1m
+
+bytes_downloaded_5m
+bytes_downloaded_1h
+
+privilege_changes_1h
+
+resource_access_count
+
+new_device
+
+new_country
+
+failure_ratio
+
+time_since_last_login
+```
+
+---
+
+# 20. Feature Engineering Pipeline
+
+Create:
+
+```text
+backend/app/ml/features.py
+```
+
+The exact same transformation must be used for:
+
+```text
+training
+inference
+```
+
+Avoid training-serving skew.
+
+---
+
+# 21. Train Isolation Forest
+
+First model:
+
+```text
+IsolationForest
+```
+
+Training script:
+
+```text
+ml/train_isolation_forest.py
+```
+
+The script should:
+
+1. load dataset
+2. clean values
+3. calculate features
+4. split evaluation data
+5. train model
+6. evaluate
+7. save preprocessing artifacts
+8. save model
+9. save metadata
+
+Artifact:
+
+```text
+artifacts/isolation_forest_v1.joblib
+```
+
+Metadata:
+
+```json
+{
+  "version": "1.0",
+  "algorithm": "IsolationForest",
+  "training_rows": 100000,
+  "features": [],
+  "created_at": "...",
+  "metrics": {}
+}
+```
+
+---
+
+# 22. ML Evaluation
+
+Track:
+
+```text
+precision
+recall
+F1
+false positive rate
+ROC-AUC when appropriate
+inference latency
+```
+
+For anomaly detection, explicitly discuss the challenge of labels.
+
+---
+
+# 23. Optional Supervised Model
+
+If labeled synthetic data is available:
+
+Train:
+
+```text
+RandomForestClassifier
+```
+
+or XGBoost.
+
+Compare models.
+
+Example documentation:
+
+| Model            | Precision | Recall |  F1 | Inference Time |
+| ---------------- | --------: | -----: | --: | -------------: |
+| Rules            |       ... |    ... | ... |            ... |
+| Isolation Forest |       ... |    ... | ... |            ... |
+| Random Forest    |       ... |    ... | ... |            ... |
+
+---
+
+# 24. ML Inference Service
+
+Create:
+
+```text
+app/ml/inference.py
+```
+
+Load the model once at startup.
+
+Do NOT reload the model for every event.
+
+Interface:
+
+```python
+score = anomaly_detector.predict(features)
+```
+
+Return:
+
+```text
+anomaly_score
+is_anomaly
+model_version
+```
+
+---
+
+# 25. Integrate ML With Detection Pipeline
+
+Flow:
+
+```text
+event
+ ↓
+feature generation
+ ↓
+anomaly detector
+ ↓
+anomaly score
+ ↓
+optional ML alert
+ ↓
+incident correlation
+```
+
+Save model version with every ML alert.
+
+This supports reproducibility.
+
+---
+
+# Phase 4 Acceptance Criteria
+
+* model can be trained locally
+* artifact can be saved
+* FastAPI loads artifact
+* new telemetry receives anomaly scores
+* synthetic abnormal activity receives higher anomaly scores than normal activity
+* ML metrics are documented
+* model version is persisted
+
+---
+
+# PHASE 5 — MITRE ATT&CK Integration
+
+## Objective
+
+Map detections to industry-standard attack techniques.
+
+Create table:
+
+```text
+attack_techniques
+```
+
+Fields:
+
+```text
+technique_id
+name
+tactic
+description
+reference
+```
+
+Examples:
+
+```text
+T1110 — Brute Force
+T1078 — Valid Accounts
+T1098 — Account Manipulation
+```
+
+Detection rules should contain associated ATT&CK IDs.
+
+Example:
+
+```python
+class BruteForceRule:
+    mitre_techniques = ["T1110"]
+```
+
+Incidents aggregate all involved techniques.
+
+API:
+
+```http
+GET /api/v1/incidents/{id}/attack-techniques
+```
+
+---
+
+# Phase 5 Acceptance Criteria
+
+Credential compromise incidents show appropriate ATT&CK techniques based on the actual triggered rules.
+
+Do not ask the LLM to invent technique IDs.
+
+Use deterministic mappings first.
+
+---
+
+# PHASE 6 — LangGraph AI Investigation Engine
+
+## Objective
+
+Use AI to investigate incidents after the deterministic SOC pipeline already understands the incident.
+
+AI receives structured evidence.
+
+It should not be responsible for primary detection.
+
+---
+
+# 26. Agent State
+
+Create:
+
+```python
+class InvestigationState(TypedDict):
+    incident_id: str
+    incident: dict
+    alerts: list
+    events: list
+    ml_results: dict
+    mitre_techniques: list
+    timeline: list
+    risk_analysis: dict
+    investigation: dict
+    recommendations: list
+    errors: list
+```
+
+---
+
+# 27. LangGraph Workflow
+
+```text
+START
+  ↓
+Load Incident
+  ↓
+Build Timeline
+  ↓
+Analyze Evidence
+  ↓
+Evaluate Risk
+  ↓
+MITRE Context
+  ↓
+Generate Investigation
+  ↓
+Generate Recommendations
+  ↓
+Validate Output
+  ↓
+Persist
+  ↓
+END
+```
+
+---
+
+# 28. Node 1 — Load Incident
+
+Retrieve:
+
+```text
+incident
+events
+alerts
+ML anomaly scores
+user context
+asset context
+MITRE mappings
+```
+
+No LLM needed.
+
+---
+
+# 29. Node 2 — Timeline Builder
+
+Mostly deterministic.
+
+Sort relevant events.
+
+Create:
+
+```text
+09:31:02 — login failure
+09:31:07 — login failure
+09:31:12 — login failure
+09:31:31 — login success
+09:32:05 — privilege change
+09:35:41 — large download
+```
+
+LLM can later summarize it.
+
+---
+
+# 30. Node 3 — Evidence Analyzer
+
+LLM receives only relevant incident evidence.
+
+Structured output:
+
+```json
+{
+  "likely_attack": "Credential compromise",
+  "confidence": 0.94,
+  "key_evidence": [],
+  "uncertainties": [],
+  "potential_impact": []
+}
+```
+
+Require Pydantic structured output.
+
+---
+
+# 31. Node 4 — Risk Analysis
+
+Combine deterministic risk score with AI interpretation.
+
+AI must not silently override deterministic severity.
+
+Store both:
+
+```text
+system_risk_score
+ai_risk_assessment
+```
+
+---
+
+# 32. Node 5 — MITRE Context
+
+Use existing deterministic technique mappings.
+
+Allow AI to explain what they mean.
+
+Do not allow unrestricted generation of arbitrary technique IDs.
+
+---
+
+# 33. Node 6 — Investigation Report
+
+Generate:
+
+```text
+Executive summary
+Attack hypothesis
+Evidence
+Timeline explanation
+Affected identities/assets
+Potential impact
+Confidence
+Open questions
+```
+
+---
+
+# 34. Node 7 — Remediation Recommendations
+
+Generate defensive recommendations such as:
+
+```text
+disable compromised account
+rotate credentials
+review session tokens
+review suspicious access
+check affected assets
+preserve logs
+increase monitoring
+```
+
+Recommendations should be defensive and contextual.
+
+---
+
+# 35. Output Validation
+
+Before storing an AI investigation:
+
+Validate:
+
+```text
+required fields
+valid confidence range
+valid incident ID
+known ATT&CK references
+maximum output sizes
+```
+
+If validation fails:
+
+Retry once.
+
+If still invalid:
+
+mark:
+
+```text
+ai_status = failed
+```
+
+The rest of the SOC remains functional.
+
+---
+
+# 36. LLM Provider Abstraction
+
+Create:
+
+```text
+app/agents/providers/
+```
+
+Interface:
+
+```python
+class LLMProvider:
+    async def generate(...):
+        ...
+```
+
+Providers:
+
+```text
+OllamaProvider
+OpenAIProvider
+BedrockProvider
+```
+
+Implement one provider first.
+
+The application must not depend directly on one vendor throughout the codebase.
+
+---
+
+# 37. Investigation API
+
+```http
+POST /api/v1/incidents/{id}/investigate
+```
+
+Do not execute long LangGraph workflows synchronously.
+
+Flow:
+
+```text
+API
+ ↓
+queue job
+ ↓
+worker
+ ↓
+LangGraph
+ ↓
+database
+```
+
+Return:
+
+```json
+{
+  "job_id": "...",
+  "status": "queued"
+}
+```
+
+Additional endpoint:
+
+```http
+GET /api/v1/investigations/{job_id}
+```
+
+---
+
+# Phase 6 Acceptance Criteria
+
+Given an existing incident, the system can:
+
+* queue investigation
+* create timeline
+* execute LangGraph
+* return structured investigation
+* provide confidence
+* show MITRE context
+* provide remediation
+* handle LLM failure gracefully
+* persist result
+
+---
+
+# PHASE 7 — Authentication and RBAC
+
+## Objective
+
+Protect the SOC application like a real security platform.
+
+Roles:
+
+```text
+admin
+analyst
+viewer
+```
+
+Permissions example:
+
+### Viewer
+
+* view dashboards
+* view incidents
+* view alerts
+
+### Analyst
+
+* viewer permissions
+* investigate incidents
+* update incident status
+* add notes
+
+### Admin
+
+* all permissions
+* manage users
+* manage rules
+* system configuration
+
+Use secure authentication.
+
+Possible implementations:
+
+```text
+JWT + FastAPI
+```
+
+or external auth provider.
+
+For portfolio depth, JWT with proper refresh/session handling is acceptable.
+
+Never store plain passwords.
+
+---
+
+# PHASE 8 — Next.js SOC Dashboard
+
+Do this only after the backend pipeline works.
+
+---
+
+# 38. Primary Pages
+
+Create:
+
+```text
+/login
+
+/dashboard
+
+/events
+
+/alerts
+
+/incidents
+
+/incidents/[id]
+
+/analytics
+
+/detections
+
+/models
+
+/settings
+```
+
+---
+
+# 39. Main Dashboard
+
+Show:
+
+```text
+Events today
+Open incidents
+Critical incidents
+Alerts today
+Mean severity
+ML anomalies
+```
+
+Charts:
+
+```text
+events over time
+incidents by severity
+top detection rules
+top source IPs
+top affected users
+MITRE tactics distribution
+```
+
+---
+
+# 40. Incident List
+
+Columns:
+
+```text
+ID
+Title
+Severity
+Risk Score
+Status
+Primary User
+Primary IP
+First Seen
+Last Seen
+Alerts
+```
+
+Filtering:
+
+```text
+severity
+status
+date
+username
+IP
+MITRE technique
+```
+
+---
+
+# 41. Incident Detail Page
+
+This should be the flagship UI.
+
+Layout:
+
+```text
+INCIDENT #182
+CRITICAL
+Credential Compromise
+
+Risk: 92/100
+Confidence: 94%
+Status: Investigating
+```
+
+Sections:
+
+```text
+Overview
+
+Timeline
+
+Alerts
+
+Raw Events
+
+ML Analysis
+
+MITRE ATT&CK
+
+AI Investigation
+
+Recommendations
+
+Analyst Notes
+```
+
+---
+
+# 42. Security Timeline
+
+Visual timeline:
+
+```text
+09:41:22
+│
+├── Failed login
+│
+├── Failed login
+│
+├── Failed login
+│
+├── Successful login
+│
+├── New device
+│
+├── Privilege change
+│
+└── Large download
+```
+
+Highlight suspicious transitions.
+
+This is one of the project's strongest visual features.
+
+---
+
+# 43. AI Investigation Panel
+
+Display:
+
+```text
+Likely Attack
+
+Credential Compromise
+
+Confidence
+94%
+
+Summary
+...
+
+Evidence
+...
+
+Potential Impact
+...
+
+Recommended Actions
+...
+```
+
+Clearly label AI-generated analysis separately from deterministic detections.
+
+---
+
+# PHASE 9 — Real-Time SOC
+
+## Objective
+
+Make the dashboard feel like an actual monitoring platform.
+
+Implement WebSocket:
+
+```text
+WS /api/v1/ws/events
+```
+
+Possible streams:
+
+```text
+new events
+new alerts
+new incidents
+incident updates
+investigation status
+```
+
+Frontend dashboard updates without refresh.
+
+---
+
+# 44. Live Event Feed
+
+Example:
+
+```text
+17:42:02 LOGIN_FAILURE      10.0.0.15
+17:42:03 LOGIN_FAILURE      10.0.0.15
+17:42:04 LOGIN_FAILURE      10.0.0.15
+17:42:08 ALERT              Brute Force
+17:42:12 LOGIN_SUCCESS      10.0.0.15
+17:42:14 INCIDENT CREATED   Credential Compromise
+```
+
+---
+
+# PHASE 10 — Analyst Workflow
+
+Add professional SOC functionality.
+
+## Analyst Notes
+
+Endpoint:
+
+```http
+POST /api/v1/incidents/{id}/notes
+```
+
+Store:
+
+```text
+author
+timestamp
+note
+```
+
+---
+
+## Incident Status
+
+Analyst can transition:
+
+```text
+open
+ ↓
+investigating
+ ↓
+contained
+ ↓
+resolved
+```
+
+Track history.
+
+---
+
+## Audit Log
+
+Record important actions:
+
+```text
+login
+incident status change
+AI investigation requested
+rule enabled/disabled
+user created
+configuration updated
+```
+
+Table:
+
+```text
+audit_logs
+```
+
+---
+
+# PHASE 11 — Detection Rule Management
+
+Eventually make rules configurable.
+
+API:
+
+```http
+GET /api/v1/detection-rules
+PATCH /api/v1/detection-rules/{id}
+```
+
+Properties:
+
+```text
+enabled
+threshold
+window
+severity
+```
+
+Example:
+
+```json
+{
+  "enabled": true,
+  "threshold": 10,
+  "window_seconds": 60
+}
+```
+
+Do not allow arbitrary executable Python from the UI.
+
+---
+
+# PHASE 12 — ML Model Management
+
+Create:
+
+```text
+ml_models
+```
+
+Fields:
+
+```text
+id
+name
+version
+algorithm
+artifact_path
+features
+metrics
+status
+created_at
+```
+
+Statuses:
+
+```text
+training
+candidate
+active
+retired
+```
+
+Endpoint:
+
+```http
+GET /api/v1/models
+```
+
+Dashboard should show:
+
+```text
+active model
+version
+training date
+precision
+recall
+F1
+false positive rate
+```
+
+---
+
+# PHASE 13 — Optional Threat Intelligence
+
+Only implement after core functionality.
+
+Possible IOC types:
+
+```text
+malicious IP
+domain
+file hash
+URL
+```
+
+Create:
+
+```text
+indicators
+```
+
+Use public threat intelligence feeds only when licensing and API limits permit.
+
+Do not make external threat intelligence essential to MVP operation.
+
+---
+
+# PHASE 14 — CLI
+
+The CLI is an additional interface, not the main application.
+
+Package example:
+
+```text
+socctl
+```
+
+Commands:
+
+```bash
+socctl health
+
+socctl incidents
+
+socctl incident show <id>
+
+socctl incident investigate <id>
+
+socctl events tail
+
+socctl alerts
+
+socctl stats
+```
+
+All commands should communicate with FastAPI.
+
+The CLI should not bypass backend business logic.
+
+---
+
+# PHASE 15 — Dockerization
+
+Create services:
+
+```text
+frontend
+backend
+worker
+postgres
+redis
+nginx
+```
+
+Docker Compose:
+
+```text
+docker-compose.yml
+```
+
+Development:
+
+```bash
+docker compose up
+```
+
+Production:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
+
+---
+
+# PHASE 16 — AWS Deployment
+
+## Cheapest Initial Architecture
+
+```text
+Internet
+   │
+   ▼
+AWS EC2
+   │
+   ├── Nginx
+   ├── Next.js
+   ├── FastAPI
+   ├── Worker
+   ├── PostgreSQL
+   └── Redis
+```
+
+Use one EC2 instance initially.
+
+Avoid:
+
+```text
+Kubernetes
+EKS
+ElastiCache
+OpenSearch
+multiple EC2 nodes
+Kafka cluster
+```
+
+unless later needed.
+
+---
+
+# 45. Production Networking
+
+Expose only:
+
+```text
+80
+443
+```
+
+SSH should be restricted appropriately.
+
+Do not expose:
+
+```text
+5432 PostgreSQL
+6379 Redis
+8000 FastAPI
+```
+
+publicly.
+
+Nginx routes traffic internally.
+
+---
+
+# 46. HTTPS
+
+Use:
+
+```text
+Nginx
++
+Let's Encrypt
+```
+
+or another appropriate TLS setup.
+
+---
+
+# 47. AWS Database Evolution
+
+Version 1:
+
+```text
+PostgreSQL Docker container
+```
+
+Version 2 optional:
+
+```text
+Amazon RDS PostgreSQL
+```
+
+The application should require only a changed `DATABASE_URL`.
+
+---
+
+# PHASE 17 — CI/CD
+
+GitHub Actions should perform:
+
+```text
+lint
+type checks
+unit tests
+integration tests
+security scans
+Docker build
+```
+
+Only deploy if tests pass.
+
+---
+
+# 48. Backend Quality Checks
+
+Use:
+
+```text
+ruff
+black
+mypy
+pytest
+```
+
+---
+
+# 49. Frontend Quality Checks
+
+Use:
+
+```text
+eslint
+TypeScript compiler
+frontend tests
+```
+
+---
+
+# 50. Security Scanning
+
+Use defensive development tools such as:
+
+```text
+Bandit
+Semgrep
+dependency vulnerability scanning
+secret scanning
+```
+
+---
+
+# PHASE 18 — Testing Strategy
+
+This project must have extensive testing.
+
+## Unit Tests
+
+Test:
+
+```text
+normalizers
+detection rules
+risk scoring
+feature engineering
+correlation
+MITRE mapping
+```
+
+---
+
+## Integration Tests
+
+Test:
+
+```text
+event ingestion → database
+
+event → detection → alert
+
+alerts → incident correlation
+
+incident → LangGraph investigation
+```
+
+Mock LLM calls for most automated tests.
+
+---
+
+## End-to-End Test
+
+Primary scenario:
+
+```text
+Generate credential-compromise telemetry
+        ↓
+events ingested
+        ↓
+rules detect behavior
+        ↓
+alerts created
+        ↓
+incident created
+        ↓
+ML anomaly scores generated
+        ↓
+MITRE mapped
+        ↓
+AI investigation runs
+        ↓
+dashboard displays incident
+```
+
+This becomes the flagship demo.
+
+---
+
+# PHASE 19 — Performance Testing
+
+Benchmark:
+
+```text
+events/second
+
+event ingestion latency
+
+detection latency
+
+incident creation latency
+
+ML inference latency
+
+database query latency
+
+WebSocket update latency
+
+AI investigation duration
+```
+
+Example target for a portfolio system:
+
+```text
+10,000+ stored events
+
+100+ events/sec ingestion
+
+<100ms basic rule processing
+
+<50ms ML inference
+```
+
+Targets should be measured rather than fabricated.
+
+---
+
+# PHASE 20 — ML Evaluation and Security Evaluation
+
+Create a controlled evaluation dataset containing:
+
+```text
+normal activity
+
+brute force
+
+password spray
+
+credential compromise
+
+suspicious privilege escalation
+
+large data access
+
+abnormal API activity
+```
+
+Evaluate:
+
+```text
+true positives
+false positives
+false negatives
+
+precision
+recall
+F1
+```
+
+Compare:
+
+```text
+rules only
+
+ML only
+
+rules + ML
+```
+
+This is important.
+
+A strong portfolio conclusion might demonstrate that combining deterministic rules and ML produces better recall while maintaining an acceptable false-positive rate.
+
+Use real measured values only.
+
+---
+
+# PHASE 21 — Observability
+
+Instrument the platform.
+
+Track:
+
+```text
+HTTP requests
+event ingestion
+queue depth
+worker failures
+rule execution
+ML inference
+LangGraph execution
+LLM token usage
+LLM cost
+database errors
+```
+
+Create internal metrics endpoint or dashboard.
+
+Optional later:
+
+```text
+Prometheus
+Grafana
+OpenTelemetry
+```
+
+Do not add these until the main project works.
+
+---
+
+# PHASE 22 — Failure Handling
+
+Design for failures.
+
+## LLM unavailable
+
+Result:
+
+```text
+SOC continues detecting incidents.
+AI investigation marked unavailable.
+```
+
+---
+
+## ML unavailable
+
+Result:
+
+```text
+rule engine continues operating.
+```
+
+---
+
+## Redis unavailable
+
+API should report degraded state.
+
+Avoid silent failure.
+
+---
+
+## Worker crashes
+
+Queued investigation should remain recoverable where practical.
+
+---
+
+## Invalid event
+
+Return validation error and do not crash ingestion.
+
+---
+
+# PHASE 23 — Security Hardening
+
+Before public deployment:
+
+* validate every API input
+* enforce authentication
+* enforce authorization
+* sanitize displayed log values
+* configure CORS narrowly
+* rate-limit ingestion endpoints
+* prevent SQL injection using ORM/parameterized queries
+* avoid exposing stack traces
+* protect API credentials
+* configure secure headers
+* do not commit secrets
+* rotate demo credentials
+* restrict database network access
+* restrict Redis access
+* set container resource limits
+* maintain audit logs
+
+---
+
+# PHASE 24 — Portfolio Documentation
+
+The README should not simply describe technologies.
+
+It should explain engineering decisions.
+
+README structure:
+
+```text
+AI-SOC
+
+Problem
+
+Demo
+
+Architecture
+
+Security Event Pipeline
+
+Detection Engine
+
+Incident Correlation
+
+Machine Learning
+
+AI Investigation
+
+MITRE ATT&CK
+
+Dashboard
+
+Database Schema
+
+API
+
+Testing
+
+Security
+
+Performance
+
+AWS Deployment
+
+Cost
+
+Engineering Decisions
+
+Limitations
+
+Future Work
+```
+
+---
+
+# 51. Architecture Diagram
+
+Include a professional architecture diagram.
+
+---
+
+# 52. Database ER Diagram
+
+Include:
+
+```text
+users
+events
+alerts
+incidents
+incident_alerts
+incident_events
+investigations
+attack_techniques
+ml_models
+audit_logs
+analyst_notes
+```
+
+---
+
+# 53. Demo Video
+
+Create approximately a few minutes of focused demo material.
+
+Demonstrate:
+
+```text
+1. normal SOC dashboard
+
+2. launch synthetic credential-compromise scenario
+
+3. live events appear
+
+4. alerts trigger
+
+5. incident automatically forms
+
+6. ML reports anomaly
+
+7. MITRE techniques appear
+
+8. run AI investigation
+
+9. AI produces timeline + explanation
+
+10. analyst resolves incident
+```
+
+---
+
+# 54. Portfolio Metrics
+
+Display real measured numbers such as:
+
+```text
+events processed
+
+events/sec
+
+rule detection accuracy
+
+ML precision
+
+ML recall
+
+ML F1
+
+false-positive rate
+
+average detection latency
+
+average investigation latency
+
+number of detection rules
+
+number of supported event categories
+```
+
+Do NOT invent benchmark results.
+
+---
+
+# FINAL MVP DEFINITION
+
+The first version that is worthy of publishing should support this exact story:
+
+```text
+Synthetic Security Events
+           ↓
+FastAPI Ingestion
+           ↓
+PostgreSQL
+           ↓
+Rule Detection
+           ↓
+ML Anomaly Detection
+           ↓
+Alerts
+           ↓
+Correlation Engine
+           ↓
+Incident
+           ↓
+MITRE ATT&CK Mapping
+           ↓
+LangGraph Investigation
+           ↓
+AI Security Analysis
+           ↓
+Next.js SOC Dashboard
+```
+
+---
+
+# IMPLEMENTATION ORDER FOR CODEX
+
+Codex should implement tasks in this order.
+
+## Sprint 1 — Foundation
+
+* repository structure
+* FastAPI
+* configuration
+* PostgreSQL
+* Redis
+* Alembic
+* Docker Compose
+* health endpoint
+* structured logging
+* testing framework
+
+STOP after tests pass.
+
+---
+
+## Sprint 2 — Events
+
+* event database model
+* Pydantic schemas
+* event repository
+* event service
+* POST event API
+* bulk API
+* list/filter API
+* normalization layer
+* synthetic event generator
+* tests
+
+STOP after synthetic events can be stored and queried.
+
+---
+
+## Sprint 3 — Detection
+
+* detection rule interface
+* rule registry
+* detection engine
+* alert model
+* brute-force detection
+* password spray
+* suspicious privilege change
+* large download
+* login-after-failures
+* unit tests
+* integration tests
+
+STOP after simulator automatically generates alerts.
+
+---
+
+## Sprint 4 — Incidents
+
+* incident models
+* incident-alert relationships
+* correlation service
+* risk-scoring engine
+* incident APIs
+* timeline generation
+* credential-compromise correlation
+* tests
+
+STOP when a synthetic credential-compromise scenario generates a single correlated incident.
+
+---
+
+## Sprint 5 — ML
+
+* event aggregation
+* feature engineering
+* training dataset generator
+* Isolation Forest training
+* evaluation script
+* model artifact saving
+* model registry table
+* inference service
+* anomaly scoring
+* ML detection integration
+* tests
+
+STOP when abnormal telemetry scores measurably differently from normal activity.
+
+---
+
+## Sprint 6 — MITRE
+
+* MITRE technique data model
+* seed core techniques
+* rule-to-technique mappings
+* incident ATT&CK aggregation
+* APIs
+* tests
+
+STOP when incidents display deterministic ATT&CK mappings.
+
+---
+
+## Sprint 7 — AI Investigation
+
+* LLM provider interface
+* provider implementation
+* LangGraph state
+* load-incident node
+* timeline node
+* evidence-analysis node
+* risk-analysis node
+* MITRE context node
+* investigation node
+* recommendation node
+* validation
+* persistence
+* queue/worker
+* APIs
+* mocked tests
+
+STOP after one stored incident can be investigated end-to-end.
+
+---
+
+## Sprint 8 — Authentication
+
+* users
+* authentication
+* roles
+* RBAC
+* route protection
+* audit logging
+
+---
+
+## Sprint 9 — Frontend Foundation
+
+* Next.js
+* authentication
+* API client
+* application shell
+* navigation
+* dashboard layout
+
+---
+
+## Sprint 10 — SOC UI
+
+* dashboard KPIs
+* event page
+* alert page
+* incident list
+* incident detail
+* timeline
+* MITRE panel
+* ML panel
+* AI investigation panel
+* analyst notes
+
+---
+
+## Sprint 11 — Real-Time
+
+* WebSocket backend
+* event broadcasting
+* alert broadcasting
+* incident broadcasting
+* frontend live feed
+* investigation-status updates
+
+---
+
+## Sprint 12 — Deployment
+
+* production Dockerfiles
+* production Compose
+* Nginx
+* HTTPS
+* AWS EC2
+* environment configuration
+* backups
+* CI/CD
+
+---
+
+## Sprint 13 — Portfolio Hardening
+
+* benchmark suite
+* ML evaluation
+* integration tests
+* E2E tests
+* security scanning
+* architecture diagrams
+* ER diagram
+* README
+* demo environment
+* demo video
+
+---
+
+# RULES CODEX MUST FOLLOW
+
+1. Implement one sprint at a time.
+
+2. Do not implement future sprint functionality unless required by the current sprint.
+
+3. Do not replace deterministic security logic with LLM calls.
+
+4. Keep business logic out of FastAPI route handlers.
+
+Routes should look approximately like:
+
+```text
+request
+ ↓
+validation
+ ↓
+service
+ ↓
+repository/domain
+ ↓
+response
+```
+
+5. Use async I/O where appropriate.
+
+6. Use typed Python.
+
+7. Add tests with every feature.
+
+8. Every database schema change must use Alembic.
+
+9. No hardcoded API keys or passwords.
+
+10. Use dependency injection where useful.
+
+11. AI output must use structured schemas.
+
+12. Long AI tasks must execute through workers.
+
+13. Do not make LLM availability a requirement for event detection.
+
+14. Do not make ML availability a requirement for rule detection.
+
+15. Keep modules loosely coupled.
+
+16. Use PostgreSQL as the source of truth.
+
+17. Redis should contain temporary/cache/queue data, not critical permanent records.
+
+18. Log important operations.
+
+19. Every alert must contain evidence explaining why it triggered.
+
+20. Every incident should be explainable without AI.
+
+---
+
+# Definition of Success
+
+The final demo should make this possible:
+
+```text
+$ python simulator.py credential-compromise
+```
+
+The UI immediately begins receiving telemetry.
+
+```text
+Normal authentication events
+        ↓
+Burst of failed logins
+        ↓
+Successful authentication
+        ↓
+Privilege change
+        ↓
+Large data access
+```
+
+The platform automatically creates:
+
+```text
+CRITICAL INCIDENT
+
+Possible Credential Compromise
+
+Risk Score: 92
+
+Detection Evidence:
+✓ brute-force pattern
+✓ successful login after failures
+✓ suspicious privilege change
+✓ abnormal data access
+
+ML:
+Anomaly Score: 0.96
+
+MITRE ATT&CK:
+T1110 — Brute Force
+T1078 — Valid Accounts
+T1098 — Account Manipulation
+```
+
+The analyst clicks:
+
+```text
+Investigate with AI
+```
+
+LangGraph produces:
+
+```text
+Incident Summary
+
+Likely Attack
+
+Evidence Analysis
+
+Timeline Explanation
+
+Affected User / Assets
+
+Potential Impact
+
+MITRE Context
+
+Recommended Defensive Actions
+
+Confidence / Uncertainty
+```
+
+The analyst updates:
+
+```text
+OPEN
+  ↓
+INVESTIGATING
+  ↓
+CONTAINED
+  ↓
+RESOLVED
+```
+
+The complete action history is stored in the audit log.
+
+That is the final product.
