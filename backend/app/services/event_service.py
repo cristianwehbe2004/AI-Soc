@@ -7,6 +7,7 @@ from app.detection.base import DetectionContext
 from app.repositories.alert_repository import AlertRepository
 from app.repositories.event_repository import EventRepository
 from app.core.config import get_settings
+from app.correlation import IncidentCorrelationService
 from app.schemas.event import (
     EventBulkCreate,
     EventBulkIngestResponse,
@@ -17,6 +18,7 @@ from app.schemas.event import (
     EventResponse,
 )
 from app.services.event_normalizer import get_normalizer
+from app.repositories.incident_repository import IncidentRepository
 
 
 class EventService:
@@ -24,13 +26,22 @@ class EventService:
         self.session = session
         self.repository = EventRepository(session)
         self.alert_repository = AlertRepository(session)
+        self.incident_repository = IncidentRepository(session)
         self.settings = get_settings()
         self.detection_engine = build_detection_engine()
+        self.correlation_service = IncidentCorrelationService(
+            alert_repository=self.alert_repository,
+            event_repository=self.repository,
+            incident_repository=self.incident_repository,
+            settings=self.settings,
+        )
 
     async def create_event(self, payload: EventCreate) -> EventIngestResponse:
         event = get_normalizer(payload).normalize(payload)
         created = await self.repository.create(event)
-        await self._run_detection([created])
+        alerts = await self._run_detection([created])
+        if alerts:
+            await self.correlation_service.correlate(alerts)
         await self.session.commit()
         return EventIngestResponse(id=created.id, event_id=created.event_id, accepted=True)
 
@@ -40,7 +51,9 @@ class EventService:
         for event in events:
             created_event = await self.repository.create(event)
             created.append(created_event)
-            await self._run_detection([created_event])
+            alerts = await self._run_detection([created_event])
+            if alerts:
+                await self.correlation_service.correlate(alerts)
         await self.session.commit()
         items = [EventIngestResponse(id=event.id, event_id=event.event_id, accepted=True) for event in created]
         return EventBulkIngestResponse(accepted=True, count=len(items), events=items)
@@ -60,11 +73,12 @@ class EventService:
             return None
         return EventResponse.model_validate(event)
 
-    async def _run_detection(self, events) -> None:
+    async def _run_detection(self, events) -> list:
         context = DetectionContext(event_repository=self.repository, settings=self.settings)
         alerts = []
         for event in events:
             matches = await self.detection_engine.evaluate_event(event, context)
             alerts.extend(self.detection_engine.build_alerts(event, matches))
         if alerts:
-            await self.alert_repository.create_many(alerts)
+            return await self.alert_repository.create_many(alerts)
+        return []

@@ -201,6 +201,59 @@ def suspicious_api_behavior(now: datetime) -> list[dict]:
     ]
 
 
+def credential_compromise(now: datetime) -> list[dict]:
+    events = failed_login_burst(now - timedelta(minutes=10), 10)
+    for item in events:
+        item["raw_payload"]["scenario"] = "credential-compromise"
+        item["metadata"]["scenario"] = "credential-compromise"
+
+    events.extend(
+        [
+            {
+                "timestamp": (now - timedelta(minutes=2)).isoformat(),
+                "source": "synthetic-auth",
+                "source_type": "application",
+                "event_type": "login_failure",
+                "category": "authentication",
+                "severity": "medium",
+                "username": "victim-admin",
+                "source_ip": "203.0.113.50",
+                "status": "failed",
+                "raw_payload": {"scenario": "credential-compromise", "sequence": 11},
+                "metadata": {"synthetic": True, "scenario": "credential-compromise"},
+            },
+            {
+                "timestamp": (now - timedelta(minutes=1)).isoformat(),
+                "source": "synthetic-auth",
+                "source_type": "application",
+                "event_type": "login_success",
+                "category": "authentication",
+                "severity": "low",
+                "username": "victim-admin",
+                "source_ip": "203.0.113.50",
+                "status": "success",
+                "raw_payload": {"scenario": "credential-compromise", "sequence": 12},
+                "metadata": {"synthetic": True, "scenario": "credential-compromise"},
+            },
+            {
+                "timestamp": now.isoformat(),
+                "source": "synthetic-iam",
+                "source_type": "cloud",
+                "event_type": "privilege_change",
+                "category": "privilege_change",
+                "severity": "high",
+                "username": "victim-admin",
+                "source_ip": "203.0.113.50",
+                "status": "success",
+                "action": "role_escalation",
+                "raw_payload": {"scenario": "credential-compromise", "sequence": 13},
+                "metadata": {"synthetic": True, "scenario": "credential-compromise"},
+            },
+        ]
+    )
+    return events
+
+
 def send_events(base_url: str, events: list[dict]) -> dict:
     payload = json.dumps({"events": events}).encode("utf-8")
     req = request.Request(
@@ -224,6 +277,7 @@ def build_parser() -> argparse.ArgumentParser:
             "large-download",
             "login-after-failures",
             "suspicious-api-behavior",
+            "credential-compromise",
         ],
     )
     parser.add_argument("--count", type=int, default=20, help="Number of events for burst scenarios.")
@@ -246,6 +300,8 @@ def main() -> None:
         events = large_download(now)
     elif args.scenario == "login-after-failures":
         events = login_after_failures(now)
+    elif args.scenario == "credential-compromise":
+        events = credential_compromise(now)
     else:
         events = suspicious_api_behavior(now)
 

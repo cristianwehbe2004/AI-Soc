@@ -13,6 +13,7 @@ from app.db.base import Base
 from app.db.session import SessionLocal, engine
 from app.models.alert import Alert
 from app.models.event import Event
+from app.models.incident import Incident, IncidentAlert
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
@@ -31,6 +32,8 @@ async def initialize_test_database() -> None:
 @pytest_asyncio.fixture(autouse=True)
 async def clear_detection_tables() -> None:
     async with SessionLocal() as session:
+        await session.execute(delete(IncidentAlert))
+        await session.execute(delete(Incident))
         await session.execute(delete(Alert))
         await session.execute(delete(Event))
         await session.commit()

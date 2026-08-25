@@ -24,6 +24,17 @@ class Settings(BaseSettings):
     large_download_threshold_bytes: int = Field(default=1_000_000, alias="LARGE_DOWNLOAD_THRESHOLD_BYTES")
     login_after_failures_threshold: int = Field(default=3, alias="LOGIN_AFTER_FAILURES_THRESHOLD")
     login_after_failures_window_seconds: int = Field(default=900, alias="LOGIN_AFTER_FAILURES_WINDOW_SECONDS")
+    credential_compromise_lookback_seconds: int = Field(
+        default=1800,
+        alias="CREDENTIAL_COMPROMISE_LOOKBACK_SECONDS",
+    )
+    incident_merge_window_seconds: int = Field(default=3600, alias="INCIDENT_MERGE_WINDOW_SECONDS")
+    risk_score_high_severity_weight: int = Field(default=20, alias="RISK_SCORE_HIGH_SEVERITY_WEIGHT")
+    risk_score_medium_severity_weight: int = Field(default=10, alias="RISK_SCORE_MEDIUM_SEVERITY_WEIGHT")
+    risk_score_low_severity_weight: int = Field(default=5, alias="RISK_SCORE_LOW_SEVERITY_WEIGHT")
+    risk_score_confidence_multiplier: int = Field(default=20, alias="RISK_SCORE_CONFIDENCE_MULTIPLIER")
+    risk_score_combo_bonus: int = Field(default=15, alias="RISK_SCORE_COMBO_BONUS")
+    risk_score_supporting_bonus: int = Field(default=10, alias="RISK_SCORE_SUPPORTING_BONUS")
 
     model_config = SettingsConfigDict(
         env_file=".env",

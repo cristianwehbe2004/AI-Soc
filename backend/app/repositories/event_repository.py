@@ -30,6 +30,13 @@ class EventRepository:
         result = await self.session.execute(select(Event).where(Event.event_id == event_id))
         return result.scalar_one_or_none()
 
+    async def get_by_ids(self, event_ids: list) -> dict:
+        if not event_ids:
+            return {}
+        result = await self.session.execute(select(Event).where(Event.id.in_(event_ids)))
+        events = list(result.scalars().all())
+        return {event.id: event for event in events}
+
     async def list(self, filters: EventQueryFilters) -> tuple[list[Event], int]:
         query = self._apply_filters(select(Event), filters).order_by(Event.timestamp.desc())
         count_query = self._apply_filters(select(func.count()).select_from(Event), filters)

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import select
+from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.alert import Alert
@@ -25,4 +28,28 @@ class AlertRepository:
 
     async def list_all(self) -> list[Alert]:
         result = await self.session.execute(select(Alert).order_by(Alert.created_at.asc()))
+        return list(result.scalars().all())
+
+    async def related_alerts(
+        self,
+        *,
+        username: str | None,
+        source_ip: str | None,
+        since: datetime,
+        exclude_alert_ids: list | None = None,
+    ) -> list[Alert]:
+        clauses = []
+        if username is not None:
+            clauses.append(Alert.username == username)
+        if source_ip is not None:
+            clauses.append(Alert.source_ip == source_ip)
+        if not clauses:
+            return []
+        query = select(Alert).where(
+            Alert.created_at >= since,
+            clauses[0] if len(clauses) == 1 else or_(*clauses),
+        )
+        if exclude_alert_ids:
+            query = query.where(Alert.id.not_in(exclude_alert_ids))
+        result = await self.session.execute(query.order_by(Alert.first_seen.asc(), Alert.created_at.asc()))
         return list(result.scalars().all())
