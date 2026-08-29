@@ -7,6 +7,7 @@ from app.detection.rules import (
     BruteForceRule,
     LargeDownloadRule,
     LoginAfterFailuresRule,
+    MLAnomalyRule,
     PasswordSprayRule,
     SuspiciousPrivilegeChangeRule,
 )
@@ -21,6 +22,7 @@ def build_detection_engine() -> DetectionEngine:
             SuspiciousPrivilegeChangeRule(),
             LargeDownloadRule(),
             LoginAfterFailuresRule(),
+            MLAnomalyRule(),
         ]
     )
     return DetectionEngine(registry)

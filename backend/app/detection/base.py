@@ -26,6 +26,7 @@ class DetectionResult:
 class DetectionContext:
     event_repository: Any
     settings: Any
+    ml_inference_service: Any | None = None
 
 
 class DetectionRule(Protocol):

@@ -12,7 +12,8 @@ COPY alembic.ini ./
 COPY migrations ./migrations
 COPY scripts ./scripts
 
-RUN pip install -e .[dev]
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --default-timeout=300 --retries=10 -e .[dev]
 
 EXPOSE 8000
 

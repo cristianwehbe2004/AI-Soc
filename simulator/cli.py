@@ -254,6 +254,64 @@ def credential_compromise(now: datetime) -> list[dict]:
     return events
 
 
+def normal_telemetry(now: datetime, count: int) -> list[dict]:
+    events = []
+    users = ["alice", "bob", "charlie", "dana"]
+    for index in range(count):
+        username = users[index % len(users)]
+        event_type = "login_success" if index % 4 == 0 else "api_request"
+        category = "authentication" if event_type == "login_success" else "api"
+        events.append(
+            {
+                "timestamp": (now - timedelta(seconds=(count - index) * 20)).isoformat(),
+                "source": "synthetic-office",
+                "source_type": "application",
+                "event_type": event_type,
+                "category": category,
+                "severity": "low",
+                "username": username,
+                "source_ip": f"192.168.20.{10 + index % len(users)}",
+                "status": "success",
+                "resource": "/documents/handbook" if event_type == "api_request" else None,
+                "bytes_sent": 500 + index % 200,
+                "bytes_received": 2_000 + index % 1_000,
+                "raw_payload": {"scenario": "normal-telemetry", "sequence": index},
+                "metadata": {"synthetic": True, "scenario": "normal-telemetry"},
+            }
+        )
+    return events
+
+
+def abnormal_telemetry(now: datetime, count: int) -> list[dict]:
+    events = []
+    for index in range(count):
+        event_type = "api_error"
+        category = "api"
+        if index % 10 == 8:
+            event_type, category = "privilege_change", "privilege_change"
+        elif index % 10 == 9:
+            event_type, category = "resource_access", "file_access"
+        events.append(
+            {
+                "timestamp": (now - timedelta(seconds=count - index)).isoformat(),
+                "source": "synthetic-compromised-host",
+                "source_type": "application",
+                "event_type": event_type,
+                "category": category,
+                "severity": "high",
+                "username": f"target-{index % 15}",
+                "source_ip": "198.51.100.200",
+                "status": "denied" if event_type == "api_error" else "success",
+                "resource": "/admin/export",
+                "bytes_sent": 100_000,
+                "bytes_received": 5_000_000 + index * 100_000,
+                "raw_payload": {"scenario": "abnormal-telemetry", "sequence": index},
+                "metadata": {"synthetic": True, "scenario": "abnormal-telemetry"},
+            }
+        )
+    return events
+
+
 def send_events(base_url: str, events: list[dict]) -> dict:
     payload = json.dumps({"events": events}).encode("utf-8")
     req = request.Request(
@@ -278,6 +336,8 @@ def build_parser() -> argparse.ArgumentParser:
             "login-after-failures",
             "suspicious-api-behavior",
             "credential-compromise",
+            "normal-telemetry",
+            "abnormal-telemetry",
         ],
     )
     parser.add_argument("--count", type=int, default=20, help="Number of events for burst scenarios.")
@@ -302,6 +362,10 @@ def main() -> None:
         events = login_after_failures(now)
     elif args.scenario == "credential-compromise":
         events = credential_compromise(now)
+    elif args.scenario == "normal-telemetry":
+        events = normal_telemetry(now, args.count)
+    elif args.scenario == "abnormal-telemetry":
+        events = abnormal_telemetry(now, args.count)
     else:
         events = suspicious_api_behavior(now)
 

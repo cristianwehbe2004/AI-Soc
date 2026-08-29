@@ -39,6 +39,7 @@ services:
       uvicorn app.main:app --host 0.0.0.0 --port 8000"
     volumes:
       - ../backend:/app
+      - ml_artifacts:/app/artifacts
     ports:
       - "8000:8000"
     depends_on:
@@ -50,3 +51,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  ml_artifacts:

@@ -37,6 +37,14 @@ class EventRepository:
         events = list(result.scalars().all())
         return {event.id: event for event in events}
 
+    async def list_between(self, *, start_time: datetime, end_time: datetime) -> list[Event]:
+        result = await self.session.execute(
+            select(Event)
+            .where(Event.timestamp >= start_time, Event.timestamp <= end_time)
+            .order_by(Event.timestamp.asc(), Event.created_at.asc())
+        )
+        return list(result.scalars().all())
+
     async def list(self, filters: EventQueryFilters) -> tuple[list[Event], int]:
         query = self._apply_filters(select(Event), filters).order_by(Event.timestamp.desc())
         count_query = self._apply_filters(select(func.count()).select_from(Event), filters)

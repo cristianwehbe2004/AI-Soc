@@ -19,6 +19,8 @@ from app.schemas.event import (
 )
 from app.services.event_normalizer import get_normalizer
 from app.repositories.incident_repository import IncidentRepository
+from app.ml.inference import MLInferenceService
+from app.repositories.model_registry_repository import ModelRegistryRepository
 
 
 class EventService:
@@ -27,8 +29,10 @@ class EventService:
         self.repository = EventRepository(session)
         self.alert_repository = AlertRepository(session)
         self.incident_repository = IncidentRepository(session)
+        self.model_registry_repository = ModelRegistryRepository(session)
         self.settings = get_settings()
         self.detection_engine = build_detection_engine()
+        self.ml_inference_service = MLInferenceService(self.model_registry_repository, self.settings)
         self.correlation_service = IncidentCorrelationService(
             alert_repository=self.alert_repository,
             event_repository=self.repository,
@@ -74,7 +78,11 @@ class EventService:
         return EventResponse.model_validate(event)
 
     async def _run_detection(self, events) -> list:
-        context = DetectionContext(event_repository=self.repository, settings=self.settings)
+        context = DetectionContext(
+            event_repository=self.repository,
+            settings=self.settings,
+            ml_inference_service=self.ml_inference_service,
+        )
         alerts = []
         for event in events:
             matches = await self.detection_engine.evaluate_event(event, context)

@@ -1,5 +1,10 @@
-# Simulator Placeholder
+# Synthetic Event Simulator
 
-Sprint 1 does not implement synthetic event generators yet.
+Generate deterministic-shape normal or abnormal ML telemetry and optionally send it to the bulk event API:
 
-This directory is scaffolded for later sprints.
+```bash
+python simulator/cli.py normal-telemetry --count 200 --send
+python simulator/cli.py abnormal-telemetry --count 50 --send
+```
+
+The simulator also retains the rule and credential-compromise scenarios from earlier sprints.

@@ -35,6 +35,16 @@ class Settings(BaseSettings):
     risk_score_confidence_multiplier: int = Field(default=20, alias="RISK_SCORE_CONFIDENCE_MULTIPLIER")
     risk_score_combo_bonus: int = Field(default=15, alias="RISK_SCORE_COMBO_BONUS")
     risk_score_supporting_bonus: int = Field(default=10, alias="RISK_SCORE_SUPPORTING_BONUS")
+    ml_enabled: bool = Field(default=True, alias="ML_ENABLED")
+    ml_model_name: str = Field(default="isolation_forest_v1", alias="ML_MODEL_NAME")
+    ml_artifact_dir: str = Field(default="/app/artifacts/models", alias="ML_ARTIFACT_DIR")
+    ml_aggregation_window_seconds: int = Field(default=300, alias="ML_AGGREGATION_WINDOW_SECONDS")
+    ml_training_lookback_days: int = Field(default=30, alias="ML_TRAINING_LOOKBACK_DAYS")
+    ml_min_training_rows: int = Field(default=200, alias="ML_MIN_TRAINING_ROWS")
+    ml_isolation_forest_contamination: float = Field(default=0.05, alias="ML_ISOLATION_FOREST_CONTAMINATION")
+    ml_isolation_forest_random_state: int = Field(default=42, alias="ML_ISOLATION_FOREST_RANDOM_STATE")
+    ml_anomaly_alert_threshold: float = Field(default=-0.15, alias="ML_ANOMALY_ALERT_THRESHOLD")
+    ml_feature_version: str = Field(default="v1", alias="ML_FEATURE_VERSION")
 
     model_config = SettingsConfigDict(
         env_file=".env",
