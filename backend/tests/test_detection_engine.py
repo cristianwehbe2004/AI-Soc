@@ -47,6 +47,19 @@ class StubEventRepository:
         return []
 
 
+def test_rule_registry_gets_rules_by_id() -> None:
+    matching = MatchingRule()
+    registry = RuleRegistry([NonMatchingRule(), matching])
+
+    assert registry.get("test.match") is matching
+    assert registry.get("test.unknown") is None
+
+
+def test_rule_registry_rejects_duplicate_ids() -> None:
+    with pytest.raises(ValueError, match="Duplicate detection rule id: test.match"):
+        RuleRegistry([MatchingRule(), MatchingRule()])
+
+
 def build_event(**overrides) -> Event:
     return Event(
         event_id=overrides.get("event_id", "evt_test"),
