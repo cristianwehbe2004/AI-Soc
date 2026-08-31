@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -16,6 +16,14 @@ json_type = JSON().with_variant(JSONB, "postgresql")
 
 class Incident(Base):
     __tablename__ = "incidents"
+    __table_args__ = (
+        Index(
+            "ix_incidents_correlation_lookup",
+            "correlation_key",
+            "status",
+            "last_seen",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title: Mapped[str] = mapped_column(String(255))
@@ -23,6 +31,7 @@ class Incident(Base):
     status: Mapped[str] = mapped_column(String(32), default="open", index=True)
     severity: Mapped[str] = mapped_column(String(32), index=True)
     risk_score: Mapped[int] = mapped_column(Integer)
+    correlation_key: Mapped[str] = mapped_column(String(512))
     primary_username: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     primary_source_ip: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)

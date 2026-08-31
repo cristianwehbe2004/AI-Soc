@@ -36,6 +36,7 @@ class AlertRepository:
         username: str | None,
         source_ip: str | None,
         since: datetime,
+        until: datetime,
         exclude_alert_ids: list | None = None,
     ) -> list[Alert]:
         clauses = []
@@ -46,7 +47,8 @@ class AlertRepository:
         if not clauses:
             return []
         query = select(Alert).where(
-            Alert.created_at >= since,
+            Alert.last_seen >= since,
+            Alert.last_seen <= until,
             clauses[0] if len(clauses) == 1 else or_(*clauses),
         )
         if exclude_alert_ids:

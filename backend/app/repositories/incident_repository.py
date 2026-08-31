@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Select, and_, func, or_, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.alert import Alert
@@ -48,29 +48,39 @@ class IncidentRepository:
     async def find_open_related_incident(
         self,
         *,
+        correlation_key: str,
         username: str | None,
         source_ip: str | None,
         since: datetime,
+        until: datetime,
     ) -> Incident | None:
-        identity_clauses = []
+        identity_clauses = [Incident.correlation_key == correlation_key]
         if username is not None:
             identity_clauses.append(Incident.primary_username == username)
         if source_ip is not None:
             identity_clauses.append(Incident.primary_source_ip == source_ip)
-        if not identity_clauses:
-            return None
         query = (
             select(Incident)
             .where(
                 Incident.status == "open",
+                or_(*identity_clauses),
                 Incident.last_seen >= since,
-                identity_clauses[0] if len(identity_clauses) == 1 else or_(*identity_clauses),
+                Incident.last_seen <= until,
             )
             .order_by(Incident.last_seen.desc())
             .limit(1)
         )
         result = await self.session.execute(query)
         return result.scalars().first()
+
+    async def acquire_correlation_lock(self, correlation_key: str) -> None:
+        await self.session.execute(
+            select(
+                func.pg_advisory_xact_lock(
+                    func.hashtextextended(correlation_key, 0)
+                )
+            )
+        )
 
     async def list(self, filters: IncidentQueryFilters) -> tuple[list[Incident], int]:
         query = self._apply_filters(select(Incident), filters).order_by(Incident.last_seen.desc())

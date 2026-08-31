@@ -9,6 +9,7 @@ import pytest
 from app.correlation.risk_scoring import RiskScoringEngine
 from app.correlation.service import IncidentCorrelationService
 from app.correlation.timeline import build_incident_timeline
+from app.correlation.identity import build_correlation_key, build_identity_lock_keys
 from app.models.alert import Alert
 from app.models.event import Event
 
@@ -90,6 +91,16 @@ def test_timeline_generator_orders_events_and_alerts() -> None:
     assert [entry["type"] for entry in timeline] == ["event", "alert"]
     assert timeline[0]["event_id"] == "evt-1"
     assert timeline[1]["rule_id"] == "rule_001_brute_force"
+
+
+def test_correlation_identity_keys_are_normalized_and_stable() -> None:
+    assert build_correlation_key(" Admin ", " 198.51.100.7 ") == (
+        "credential_compromise:u:5:admin|s:12:198.51.100.7"
+    )
+    assert build_identity_lock_keys(" Admin ", " 198.51.100.7 ") == [
+        "credential_compromise:source_ip:12:198.51.100.7",
+        "credential_compromise:username:5:admin",
+    ]
 
 
 @pytest.mark.anyio

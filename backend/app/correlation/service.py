@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+from app.correlation.identity import build_correlation_key, build_identity_lock_keys
 from app.correlation.risk_scoring import RiskScoringEngine
 from app.correlation.timeline import build_incident_timeline
 from app.models.alert import Alert
@@ -49,6 +50,7 @@ class IncidentCorrelationService:
             username=alert.username,
             source_ip=alert.source_ip,
             since=lookback_since,
+            until=alert.last_seen,
         )
         if alert.id not in {item.id for item in related}:
             related.append(alert)
@@ -58,46 +60,55 @@ class IncidentCorrelationService:
 
         username = self._select_primary_username(candidate_alerts)
         source_ip = self._select_primary_source_ip(candidate_alerts)
+        correlation_key = build_correlation_key(username, source_ip)
+        for identity_key in build_identity_lock_keys(username, source_ip):
+            await self.incident_repository.acquire_correlation_lock(identity_key)
         merge_since = alert.last_seen - timedelta(seconds=self.settings.incident_merge_window_seconds)
         incident = await self.incident_repository.find_open_related_incident(
+            correlation_key=correlation_key,
             username=username,
             source_ip=source_ip,
             since=merge_since,
+            until=alert.last_seen,
         )
-
-        event_ids = [item.event_id for item in candidate_alerts]
-        events_by_id = await self.event_repository.get_by_ids(event_ids)
-        timeline = build_incident_timeline(candidate_alerts, events_by_id)
-        risk_score = self.risk_scoring.score(candidate_alerts)
-        severity = self.risk_scoring.severity_from_score(risk_score)
 
         if incident is None:
             incident = Incident(
                 title="Credential compromise incident",
                 description="Correlated attack activity indicates a likely credential compromise sequence.",
                 status="open",
-                severity=severity,
-                risk_score=risk_score,
+                severity="low",
+                risk_score=0,
+                correlation_key=correlation_key,
                 primary_username=username,
                 primary_source_ip=source_ip,
                 first_seen=min(item.first_seen for item in candidate_alerts),
                 last_seen=max(item.last_seen for item in candidate_alerts),
-                timeline=timeline,
+                timeline=[],
             )
             incident = await self.incident_repository.create(incident)
-        else:
-            incident.severity = severity
-            incident.risk_score = risk_score
-            incident.primary_username = username or incident.primary_username
-            incident.primary_source_ip = source_ip or incident.primary_source_ip
-            incident.first_seen = min(incident.first_seen, min(item.first_seen for item in candidate_alerts))
-            incident.last_seen = max(incident.last_seen, max(item.last_seen for item in candidate_alerts))
-            incident.timeline = timeline
-            incident.description = "Correlated attack activity indicates a likely credential compromise sequence."
-            await self.incident_repository.update(incident)
 
         await self.incident_repository.add_alert_links(incident.id, [item.id for item in candidate_alerts])
+        all_alerts = await self.incident_repository.get_alerts_for_incident(incident.id)
+        events_by_id = await self.event_repository.get_by_ids(
+            [item.event_id for item in all_alerts]
+        )
+        timeline = build_incident_timeline(all_alerts, events_by_id)
+        risk_score = self.risk_scoring.score(all_alerts)
+
+        incident.severity = self.risk_scoring.severity_from_score(risk_score)
+        incident.risk_score = risk_score
+        incident.correlation_key = correlation_key
+        incident.primary_username = username or incident.primary_username
+        incident.primary_source_ip = source_ip or incident.primary_source_ip
+        incident.first_seen = min(item.first_seen for item in all_alerts)
+        incident.last_seen = max(item.last_seen for item in all_alerts)
         incident.timeline = timeline
+        incident.description = (
+            "Correlated attack activity indicates a likely credential compromise "
+            "sequence."
+        )
+        await self.incident_repository.update(incident)
         return incident
 
     def _credential_compromise_candidates(self, alerts: list[Alert]) -> list[Alert]:
