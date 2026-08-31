@@ -7,6 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.alert import AlertResponse
+from app.schemas.mitre import MitreTechniqueResponse
 
 IncidentStatus = Literal["open", "investigating", "contained", "resolved"]
 IncidentSeverity = Literal["low", "medium", "high", "critical"]
@@ -45,6 +46,7 @@ class IncidentListItem(BaseModel):
 class IncidentDetail(IncidentListItem):
     timeline: list[TimelineEntry]
     alerts: list[AlertResponse]
+    techniques: list[MitreTechniqueResponse]
 
 
 class IncidentListResponse(BaseModel):

@@ -1,6 +1,5 @@
 """Detection package."""
 
-from app.core.config import get_settings
 from app.detection.engine import DetectionEngine
 from app.detection.registry import RuleRegistry
 from app.detection.rules import (
@@ -13,9 +12,8 @@ from app.detection.rules import (
 )
 
 
-def build_detection_engine() -> DetectionEngine:
-    settings = get_settings()
-    registry = RuleRegistry(
+def build_rule_registry() -> RuleRegistry:
+    return RuleRegistry(
         [
             BruteForceRule(),
             PasswordSprayRule(),
@@ -25,4 +23,7 @@ def build_detection_engine() -> DetectionEngine:
             MLAnomalyRule(),
         ]
     )
-    return DetectionEngine(registry)
+
+
+def build_detection_engine() -> DetectionEngine:
+    return DetectionEngine(build_rule_registry())

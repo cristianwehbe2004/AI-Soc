@@ -26,6 +26,7 @@ from app.models.alert import Alert
 from app.models.event import Event
 from app.models.incident import Incident, IncidentAlert
 from app.models.model_registry import ModelRegistry
+from app.repositories.mitre_repository import MitreRepository
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
@@ -38,6 +39,9 @@ async def initialize_test_database() -> None:
                 cursor.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(test_database_name)))
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+    async with SessionLocal() as session:
+        await MitreRepository(session).seed_core_catalog()
+        await session.commit()
     yield
 
 

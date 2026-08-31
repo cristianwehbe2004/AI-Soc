@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db_session
 from app.repositories.incident_repository import IncidentRepository
+from app.repositories.mitre_repository import MitreRepository
 from app.schemas.incident import IncidentDetail, IncidentListResponse, IncidentQueryFilters, IncidentSeverity, IncidentStatus
 from app.services.incident_service import IncidentService
 
@@ -14,7 +15,7 @@ router = APIRouter(prefix="/incidents")
 
 
 def get_incident_service(session: AsyncSession = Depends(get_db_session)) -> IncidentService:
-    return IncidentService(IncidentRepository(session))
+    return IncidentService(IncidentRepository(session), MitreRepository(session))
 
 
 @router.get("", response_model=IncidentListResponse)

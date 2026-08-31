@@ -1,6 +1,6 @@
 # AI-SOC Backend
 
-The backend currently supports event ingestion, rule-based alerting, incident correlation, and Sprint 5 ML anomaly detection.
+The backend currently supports event ingestion, rule-based and ML alerting, incident correlation, and MITRE ATT&CK aggregation.
 
 - FastAPI application
 - environment-driven settings
@@ -9,6 +9,11 @@ The backend currently supports event ingestion, rule-based alerting, incident co
 - JSON logging
 - health endpoint
 - pytest coverage
+- pinned ATT&CK technique catalog and rule mappings
+
+## MITRE ATT&CK
+
+Read the seeded catalog at `GET /api/v1/mitre/techniques`, inspect one technique by external ID, or query mappings at `GET /api/v1/mitre/rules/{rule_id}/techniques`. Incident detail responses include techniques aggregated from attached alert rules.
 
 ## ML Workflow
 

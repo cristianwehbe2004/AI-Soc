@@ -1,0 +1,67 @@
+from __future__ import annotations
+
+CORE_TECHNIQUES = [
+    {
+        "external_id": "T1110",
+        "name": "Brute Force",
+        "description": "Adversaries may systematically guess passwords or crack password material to gain account access.",
+        "tactics": ["Credential Access"],
+        "platforms": ["Containers", "ESXi", "IaaS", "Identity Provider", "Linux", "Network Devices", "Office Suite", "SaaS", "Windows", "macOS"],
+        "version": "2.8",
+        "source_url": "https://attack.mitre.org/techniques/T1110/",
+        "is_subtechnique": False,
+        "parent_external_id": None,
+    },
+    {
+        "external_id": "T1110.003",
+        "name": "Password Spraying",
+        "description": "Adversaries may try one or a small set of common passwords against many accounts.",
+        "tactics": ["Credential Access"],
+        "platforms": ["Containers", "ESXi", "IaaS", "Identity Provider", "Linux", "Network Devices", "Office Suite", "SaaS", "Windows", "macOS"],
+        "version": "1.8",
+        "source_url": "https://attack.mitre.org/techniques/T1110/003/",
+        "is_subtechnique": True,
+        "parent_external_id": "T1110",
+    },
+    {
+        "external_id": "T1098",
+        "name": "Account Manipulation",
+        "description": "Adversaries may modify accounts, credentials, groups, or roles to preserve or elevate access.",
+        "tactics": ["Persistence", "Privilege Escalation"],
+        "platforms": ["Containers", "ESXi", "IaaS", "Identity Provider", "Linux", "Network Devices", "Office Suite", "SaaS", "Windows", "macOS"],
+        "version": "2.8",
+        "source_url": "https://attack.mitre.org/techniques/T1098/",
+        "is_subtechnique": False,
+        "parent_external_id": None,
+    },
+    {
+        "external_id": "T1005",
+        "name": "Data from Local System",
+        "description": "Adversaries may collect sensitive data from local files, databases, configuration, or memory.",
+        "tactics": ["Collection"],
+        "platforms": ["ESXi", "Linux", "Network Devices", "Windows", "macOS"],
+        "version": "1.8",
+        "source_url": "https://attack.mitre.org/techniques/T1005/",
+        "is_subtechnique": False,
+        "parent_external_id": None,
+    },
+    {
+        "external_id": "T1078",
+        "name": "Valid Accounts",
+        "description": "Adversaries may abuse credentials for existing accounts to gain or maintain access.",
+        "tactics": ["Stealth", "Persistence", "Privilege Escalation", "Initial Access"],
+        "platforms": ["Containers", "ESXi", "IaaS", "Identity Provider", "Linux", "Network Devices", "Office Suite", "SaaS", "Windows", "macOS"],
+        "version": "3.0",
+        "source_url": "https://attack.mitre.org/techniques/T1078/",
+        "is_subtechnique": False,
+        "parent_external_id": None,
+    },
+]
+
+CORE_RULE_MAPPINGS = [
+    ("rule_001_brute_force", "T1110"),
+    ("rule_002_password_spray", "T1110.003"),
+    ("rule_003_suspicious_privilege_change", "T1098"),
+    ("rule_004_large_download", "T1005"),
+    ("rule_005_login_after_failures", "T1078"),
+]

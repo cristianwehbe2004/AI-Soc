@@ -99,6 +99,12 @@ async def test_incident_apis_return_correlated_credential_compromise() -> None:
         assert len(detail["alerts"]) >= 3
         assert any(entry["type"] == "alert" for entry in detail["timeline"])
         assert any(alert["rule_id"] == "rule_005_login_after_failures" for alert in detail["alerts"])
+        assert {item["external_id"] for item in detail["techniques"]} == {
+            "T1098",
+            "T1078",
+            "T1110",
+            "T1110.003",
+        }
 
 
 @pytest.mark.anyio
