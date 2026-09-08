@@ -1,6 +1,6 @@
 # AI-SOC Backend
 
-The backend currently supports event ingestion, rule-based and ML alerting, incident correlation, and MITRE ATT&CK aggregation.
+The backend currently supports event ingestion, rule-based and ML alerting, incident correlation, MITRE ATT&CK aggregation, and queued AI investigation.
 
 - FastAPI application
 - environment-driven settings
@@ -14,6 +14,10 @@ The backend currently supports event ingestion, rule-based and ML alerting, inci
 ## MITRE ATT&CK
 
 Read the seeded catalog at `GET /api/v1/mitre/techniques`, inspect one technique by external ID, or query mappings at `GET /api/v1/mitre/rules/{rule_id}/techniques`. Incident detail responses include techniques aggregated from attached alert rules.
+
+## AI Investigation
+
+AI investigation is disabled by default. When configured, `POST /api/v1/incidents/{incident_id}/investigations` creates an idempotent queued job. The worker runs a validated LangGraph workflow and persists the result for `GET /api/v1/investigations/{investigation_id}`. See `docs/api/investigations.md` for the API contract and safety boundary.
 
 ## ML Workflow
 

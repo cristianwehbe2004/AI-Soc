@@ -1,27 +1,23 @@
 # AI-SOC
 
-Sprint 1 sets up the repository and backend foundation for an AI-powered Security Operations Center without implementing telemetry ingestion, alerts, incidents, ML, LangGraph, LLM integrations, MITRE mapping, frontend application code, authentication, WebSockets, or deployment automation.
+AI-SOC is a modular security operations backend that ingests telemetry, detects
+threats, correlates incidents, scores anomalies, maps ATT&CK techniques, and runs
+queued AI-assisted investigations.
 
 ## Scope
 
-Implemented in this sprint:
+Implemented through Sprint 7:
 
-- repository structure
-- FastAPI backend foundation
-- environment-based configuration
-- PostgreSQL and Redis connectivity
-- structured JSON logging
-- health endpoint
-- Alembic wiring
-- Docker Compose local stack
-- basic automated tests
+- normalized event and bulk ingestion
+- rule-based and Isolation Forest alert generation
+- credential-compromise incident correlation and timelines
+- MITRE ATT&CK technique catalog and rule mappings
+- persisted LangGraph investigation workflow with structured LLM output
+- Redis investigation queue and standalone worker
+- PostgreSQL persistence, Alembic migrations, Docker Compose, and automated tests
 
-Intentionally deferred:
+Still deferred:
 
-- events, alerts, incidents
-- detection and correlation logic
-- machine learning pipelines and models
-- AI investigation workflows
 - Next.js frontend implementation
 - authentication and authorization
 - WebSocket streaming
@@ -31,23 +27,24 @@ Intentionally deferred:
 
 ```text
 backend/     FastAPI application, tests, migrations, scripts
-frontend/    Placeholder structure only for now
+frontend/    Placeholder structure
 infra/       Local container orchestration and nginx placeholder
-ml/          Placeholder structure for future ML work
-simulator/   Placeholder structure for future synthetic telemetry
+ml/          ML support files
+simulator/   Synthetic telemetry scenarios
 docs/        Architecture and API notes
 ```
 
 ## Quick Start
 
-1. Copy `backend/.env.example` to `backend/.env`.
-2. Start the local stack:
+1. Review `backend/.env.example`. AI investigation remains disabled until a
+   provider and key are configured.
+2. Start PostgreSQL, Redis, the API, and investigation worker:
 
    ```bash
    docker compose -f infra/docker-compose.yml up --build
    ```
 
-3. Open `http://localhost:8000/api/v1/health`.
+3. Open `http://localhost:8000/api/v1/health` or `/docs`.
 
 ## Backend Commands
 
@@ -62,6 +59,6 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ## Notes
 
-- The backend is designed as a modular monolith.
-- The health endpoint validates both PostgreSQL and Redis connectivity.
-- Frontend, ML, simulator, and worker directories are scaffolded only to support future sprints.
+- Event ingestion remains synchronous and does not wait for LLM investigation.
+- Investigation results are structured, evidence-linked, validated, and persisted.
+- Telemetry supplied to the LLM is allowlisted, sanitized, and size-bounded.

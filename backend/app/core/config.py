@@ -13,8 +13,25 @@ class Settings(BaseSettings):
     database_url: str = Field(..., alias="DATABASE_URL")
     redis_url: str = Field(..., alias="REDIS_URL")
     secret_key: str = Field(..., alias="SECRET_KEY")
+    llm_enabled: bool = Field(default=False, alias="LLM_ENABLED")
     llm_provider: str = Field(default="disabled", alias="LLM_PROVIDER")
     llm_api_key: str | None = Field(default=None, alias="LLM_API_KEY")
+    llm_model: str = Field(default="gpt-5-mini", alias="LLM_MODEL")
+    llm_timeout_seconds: float = Field(default=60.0, gt=0, alias="LLM_TIMEOUT_SECONDS")
+    llm_max_retries: int = Field(default=2, ge=0, le=10, alias="LLM_MAX_RETRIES")
+    llm_max_output_tokens: int = Field(default=2000, ge=256, alias="LLM_MAX_OUTPUT_TOKENS")
+    llm_prompt_version: str = Field(default="v1", alias="LLM_PROMPT_VERSION")
+    llm_context_max_chars: int = Field(default=30_000, ge=5000, alias="LLM_CONTEXT_MAX_CHARS")
+    investigation_queue_key: str = Field(
+        default="ai_soc:investigations",
+        alias="INVESTIGATION_QUEUE_KEY",
+    )
+    investigation_worker_block_seconds: int = Field(
+        default=5,
+        ge=1,
+        le=60,
+        alias="INVESTIGATION_WORKER_BLOCK_SECONDS",
+    )
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     brute_force_threshold: int = Field(default=10, alias="BRUTE_FORCE_THRESHOLD")
     brute_force_window_seconds: int = Field(default=60, alias="BRUTE_FORCE_WINDOW_SECONDS")

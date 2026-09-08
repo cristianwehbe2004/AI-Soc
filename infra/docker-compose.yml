@@ -48,6 +48,24 @@ services:
       redis:
         condition: service_healthy
 
+  worker:
+    build:
+      context: ../backend
+    working_dir: /app
+    env_file:
+      - ../backend/.env.example
+    command: >
+      sh -c "python scripts/wait_for_services.py &&
+      python -m app.workers.investigation"
+    volumes:
+      - ../backend:/app
+      - ml_artifacts:/app/artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   redis_data:
