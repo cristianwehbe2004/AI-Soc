@@ -10,8 +10,13 @@ from app.repositories.incident_repository import IncidentRepository
 from app.repositories.mitre_repository import MitreRepository
 from app.schemas.incident import IncidentDetail, IncidentListResponse, IncidentQueryFilters, IncidentSeverity, IncidentStatus
 from app.services.incident_service import IncidentService
+from app.security.dependencies import require_permission
+from app.security.permissions import Permission
 
-router = APIRouter(prefix="/incidents")
+router = APIRouter(
+    prefix="/incidents",
+    dependencies=[Depends(require_permission(Permission.SOC_READ))],
+)
 
 
 def get_incident_service(session: AsyncSession = Depends(get_db_session)) -> IncidentService:

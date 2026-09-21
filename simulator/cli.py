@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from datetime import datetime, timedelta, timezone
 from urllib import request
 
@@ -312,12 +313,12 @@ def abnormal_telemetry(now: datetime, count: int) -> list[dict]:
     return events
 
 
-def send_events(base_url: str, events: list[dict]) -> dict:
+def send_events(base_url: str, events: list[dict], api_key: str) -> dict:
     payload = json.dumps({"events": events}).encode("utf-8")
     req = request.Request(
         url=f"{base_url.rstrip('/')}/api/v1/events/bulk",
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "X-API-Key": api_key},
         method="POST",
     )
     with request.urlopen(req) as response:
@@ -343,6 +344,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--count", type=int, default=20, help="Number of events for burst scenarios.")
     parser.add_argument("--base-url", default="http://localhost:8000", help="API base URL for ingestion.")
     parser.add_argument("--send", action="store_true", help="POST generated events to the backend API.")
+    parser.add_argument(
+        "--api-key",
+        default=os.getenv("AI_SOC_API_KEY"),
+        help="Ingestion key; defaults to AI_SOC_API_KEY.",
+    )
     return parser
 
 
@@ -370,7 +376,9 @@ def main() -> None:
         events = suspicious_api_behavior(now)
 
     if args.send:
-        result = send_events(args.base_url, events)
+        if not args.api_key:
+            raise SystemExit("--api-key or AI_SOC_API_KEY is required with --send")
+        result = send_events(args.base_url, events, args.api_key)
         print(json.dumps(result, indent=2))
         return
 

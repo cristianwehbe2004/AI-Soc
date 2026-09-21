@@ -12,8 +12,13 @@ from app.schemas.mitre import (
     RuleTechniqueResponse,
 )
 from app.services.mitre_service import MitreService
+from app.security.dependencies import require_permission
+from app.security.permissions import Permission
 
-router = APIRouter(prefix="/mitre")
+router = APIRouter(
+    prefix="/mitre",
+    dependencies=[Depends(require_permission(Permission.SOC_READ))],
+)
 
 
 def get_mitre_service(session: AsyncSession = Depends(get_db_session)) -> MitreService:

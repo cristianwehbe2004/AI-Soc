@@ -14,6 +14,7 @@ from app.models.event import Event
 from app.models.incident import Incident, IncidentAlert
 from app.repositories.alert_repository import AlertRepository
 from app.repositories.incident_repository import IncidentRepository
+from conftest import AUTH_HEADERS
 
 
 def credential_compromise_events(
@@ -90,8 +91,16 @@ async def test_incident_apis_return_correlated_credential_compromise() -> None:
     now = datetime.now(UTC)
     transport = ASGITransport(app=app)
 
-    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        ingest_response = await client.post("/api/v1/events/bulk", json={"events": credential_compromise_events(now)})
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://testserver",
+        headers=AUTH_HEADERS["viewer"],
+    ) as client:
+        ingest_response = await client.post(
+            "/api/v1/events/bulk",
+            headers=AUTH_HEADERS["api_key"],
+            json={"events": credential_compromise_events(now)},
+        )
         assert ingest_response.status_code == 201
 
         list_response = await client.get("/api/v1/incidents")
@@ -139,8 +148,14 @@ async def test_benign_events_do_not_create_incidents() -> None:
         ]
     }
 
-    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        ingest_response = await client.post("/api/v1/events/bulk", json=payload)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://testserver",
+        headers=AUTH_HEADERS["viewer"],
+    ) as client:
+        ingest_response = await client.post(
+            "/api/v1/events/bulk", headers=AUTH_HEADERS["api_key"], json=payload
+        )
         assert ingest_response.status_code == 201
         list_response = await client.get("/api/v1/incidents")
         assert list_response.status_code == 200
@@ -173,11 +188,19 @@ async def test_related_alerts_merge_into_existing_incident() -> None:
         ]
     }
 
-    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        first_response = await client.post("/api/v1/events/bulk", json=phase_one)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://testserver",
+        headers=AUTH_HEADERS["viewer"],
+    ) as client:
+        first_response = await client.post(
+            "/api/v1/events/bulk", headers=AUTH_HEADERS["api_key"], json=phase_one
+        )
         assert first_response.status_code == 201
 
-        second_response = await client.post("/api/v1/events/bulk", json=phase_two)
+        second_response = await client.post(
+            "/api/v1/events/bulk", headers=AUTH_HEADERS["api_key"], json=phase_two
+        )
         assert second_response.status_code == 201
 
         list_response = await client.get("/api/v1/incidents")
@@ -314,9 +337,14 @@ async def test_incident_merge_preserves_all_linked_alerts_in_timeline() -> None:
         old_alert_id = str(old_alert.id)
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://testserver",
+        headers=AUTH_HEADERS["viewer"],
+    ) as client:
         response = await client.post(
             "/api/v1/events/bulk",
+            headers=AUTH_HEADERS["api_key"],
             json={
                 "events": credential_compromise_events(
                     now,
@@ -347,12 +375,24 @@ async def test_concurrent_ingests_create_one_correlated_incident() -> None:
     transport_two = ASGITransport(app=app)
 
     async with (
-        AsyncClient(transport=transport_one, base_url="http://testserver") as client_one,
-        AsyncClient(transport=transport_two, base_url="http://testserver") as client_two,
+        AsyncClient(
+            transport=transport_one,
+            base_url="http://testserver",
+            headers=AUTH_HEADERS["viewer"],
+        ) as client_one,
+        AsyncClient(
+            transport=transport_two,
+            base_url="http://testserver",
+            headers=AUTH_HEADERS["viewer"],
+        ) as client_two,
     ):
         responses = await asyncio.gather(
-            client_one.post("/api/v1/events/bulk", json=payload),
-            client_two.post("/api/v1/events/bulk", json=payload),
+            client_one.post(
+                "/api/v1/events/bulk", headers=AUTH_HEADERS["api_key"], json=payload
+            ),
+            client_two.post(
+                "/api/v1/events/bulk", headers=AUTH_HEADERS["api_key"], json=payload
+            ),
         )
         list_response = await client_one.get("/api/v1/incidents")
 

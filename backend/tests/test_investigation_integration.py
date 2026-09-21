@@ -32,6 +32,7 @@ from app.schemas.investigation import (
 )
 from app.services.investigation_service import InvestigationService
 from app.workers.investigation import process_investigation
+from conftest import AUTH_HEADERS
 
 
 class FakeQueue:
@@ -245,9 +246,11 @@ async def test_stored_incident_is_investigated_end_to_end() -> None:
     async with AsyncClient(
         transport=transport,
         base_url="http://testserver",
+        headers=AUTH_HEADERS["viewer"],
     ) as client:
         create_response = await client.post(
-            f"/api/v1/incidents/{incident_id}/investigations"
+            f"/api/v1/incidents/{incident_id}/investigations",
+            headers=AUTH_HEADERS["analyst"],
         )
         assert create_response.status_code == 202
         investigation_id = uuid.UUID(create_response.json()["id"])
@@ -300,12 +303,15 @@ async def test_investigation_request_is_idempotent_for_unchanged_incident() -> N
         async with AsyncClient(
             transport=transport,
             base_url="http://testserver",
+            headers=AUTH_HEADERS["viewer"],
         ) as client:
             first = await client.post(
-                f"/api/v1/incidents/{incident_id}/investigations"
+                f"/api/v1/incidents/{incident_id}/investigations",
+                headers=AUTH_HEADERS["analyst"],
             )
             second = await client.post(
-                f"/api/v1/incidents/{incident_id}/investigations"
+                f"/api/v1/incidents/{incident_id}/investigations",
+                headers=AUTH_HEADERS["analyst"],
             )
     finally:
         app.dependency_overrides.pop(get_investigation_service, None)
@@ -331,18 +337,22 @@ async def test_concurrent_investigation_requests_create_one_job() -> None:
             AsyncClient(
                 transport=first_transport,
                 base_url="http://testserver",
+                headers=AUTH_HEADERS["viewer"],
             ) as first_client,
             AsyncClient(
                 transport=second_transport,
                 base_url="http://testserver",
+                headers=AUTH_HEADERS["viewer"],
             ) as second_client,
         ):
             first, second = await asyncio.gather(
                 first_client.post(
-                    f"/api/v1/incidents/{incident_id}/investigations"
+                    f"/api/v1/incidents/{incident_id}/investigations",
+                    headers=AUTH_HEADERS["analyst"],
                 ),
                 second_client.post(
-                    f"/api/v1/incidents/{incident_id}/investigations"
+                    f"/api/v1/incidents/{incident_id}/investigations",
+                    headers=AUTH_HEADERS["analyst"],
                 ),
             )
     finally:
@@ -367,9 +377,11 @@ async def test_invalid_llm_evidence_is_persisted_as_failure() -> None:
         async with AsyncClient(
             transport=transport,
             base_url="http://testserver",
+            headers=AUTH_HEADERS["viewer"],
         ) as client:
             response = await client.post(
-                f"/api/v1/incidents/{incident_id}/investigations"
+                f"/api/v1/incidents/{incident_id}/investigations",
+                headers=AUTH_HEADERS["analyst"],
             )
             investigation_id = uuid.UUID(response.json()["id"])
             succeeded = await process_investigation(

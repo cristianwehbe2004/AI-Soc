@@ -32,7 +32,7 @@ services:
       context: ../backend
     working_dir: /app
     env_file:
-      - ../backend/.env.example
+      - ../backend/.env
     command: >
       sh -c "python scripts/wait_for_services.py &&
       alembic upgrade head &&
@@ -53,7 +53,7 @@ services:
       context: ../backend
     working_dir: /app
     env_file:
-      - ../backend/.env.example
+      - ../backend/.env
     command: >
       sh -c "python scripts/wait_for_services.py &&
       python -m app.workers.investigation"

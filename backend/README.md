@@ -1,6 +1,8 @@
 # AI-SOC Backend
 
-The backend currently supports event ingestion, rule-based and ML alerting, incident correlation, MITRE ATT&CK aggregation, and queued AI investigation.
+The backend currently supports authenticated event ingestion, rule-based and ML
+alerting, incident correlation, MITRE ATT&CK aggregation, and queued AI
+investigation.
 
 - FastAPI application
 - environment-driven settings
@@ -10,6 +12,13 @@ The backend currently supports event ingestion, rule-based and ML alerting, inci
 - health endpoint
 - pytest coverage
 - pinned ATT&CK technique catalog and rule mappings
+- rotating refresh sessions, RBAC, service API keys, and audit history
+
+## Authentication
+
+Create the first administrator with `python scripts/create_admin.py`, then use the
+admin APIs to create users and issue an `events:write` key for the simulator.
+See `docs/api/authentication.md` for the browser and API contracts.
 
 ## MITRE ATT&CK
 

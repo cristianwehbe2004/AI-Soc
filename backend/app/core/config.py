@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,9 +10,22 @@ class Settings(BaseSettings):
     app_host: str = Field(default="0.0.0.0", alias="APP_HOST")
     app_port: int = Field(default=8000, alias="APP_PORT")
     api_v1_prefix: str = Field(default="/api/v1", alias="API_V1_PREFIX")
+    cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:3000"],
+        alias="CORS_ORIGINS",
+    )
     database_url: str = Field(..., alias="DATABASE_URL")
     redis_url: str = Field(..., alias="REDIS_URL")
     secret_key: str = Field(..., alias="SECRET_KEY")
+    auth_jwt_issuer: str = Field(default="ai-soc", alias="AUTH_JWT_ISSUER")
+    auth_jwt_audience: str = Field(default="ai-soc-api", alias="AUTH_JWT_AUDIENCE")
+    auth_access_token_minutes: int = Field(default=15, ge=1, le=60, alias="AUTH_ACCESS_TOKEN_MINUTES")
+    auth_refresh_token_days: int = Field(default=7, ge=1, le=30, alias="AUTH_REFRESH_TOKEN_DAYS")
+    auth_refresh_cookie_name: str = Field(default="ai_soc_refresh", alias="AUTH_REFRESH_COOKIE_NAME")
+    auth_cookie_secure: bool = Field(default=False, alias="AUTH_COOKIE_SECURE")
+    auth_login_window_seconds: int = Field(default=900, ge=60, alias="AUTH_LOGIN_WINDOW_SECONDS")
+    auth_login_account_limit: int = Field(default=5, ge=1, alias="AUTH_LOGIN_ACCOUNT_LIMIT")
+    auth_login_ip_limit: int = Field(default=20, ge=1, alias="AUTH_LOGIN_IP_LIMIT")
     llm_enabled: bool = Field(default=False, alias="LLM_ENABLED")
     llm_provider: str = Field(default="disabled", alias="LLM_PROVIDER")
     llm_api_key: str | None = Field(default=None, alias="LLM_API_KEY")
@@ -69,6 +82,14 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def validate_secret_key(self) -> "Settings":
+        if self.app_env.lower() not in {"development", "test"} and (
+            self.secret_key == "change-me" or len(self.secret_key) < 32
+        ):
+            raise ValueError("SECRET_KEY must be at least 32 characters outside development/test")
+        return self
 
 
 @lru_cache

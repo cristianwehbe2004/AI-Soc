@@ -11,6 +11,7 @@ from app.schemas.event import (
     EventListResponse,
     EventResponse,
 )
+from conftest import AUTH_HEADERS
 
 
 def test_create_event_validates_and_returns_created(monkeypatch) -> None:
@@ -22,6 +23,7 @@ def test_create_event_validates_and_returns_created(monkeypatch) -> None:
     client = TestClient(app)
     response = client.post(
         "/api/v1/events",
+        headers=AUTH_HEADERS["api_key"],
         json={
             "timestamp": "2026-08-24T11:30:00Z",
             "source": "auth-service",
@@ -44,6 +46,7 @@ def test_create_event_rejects_invalid_category() -> None:
     client = TestClient(app)
     response = client.post(
         "/api/v1/events",
+        headers=AUTH_HEADERS["api_key"],
         json={
             "timestamp": "2026-08-24T11:30:00Z",
             "source": "auth-service",
@@ -72,6 +75,7 @@ def test_bulk_create_events_returns_count(monkeypatch) -> None:
     client = TestClient(app)
     response = client.post(
         "/api/v1/events/bulk",
+        headers=AUTH_HEADERS["api_key"],
         json={
             "events": [
                 {
@@ -135,7 +139,11 @@ def test_list_events_returns_filtered_payload(monkeypatch) -> None:
     monkeypatch.setattr("app.services.event_service.EventService.list_events", fake_list_events)
 
     client = TestClient(app)
-    response = client.get("/api/v1/events", params={"username": "alice", "limit": 10, "offset": 0})
+    response = client.get(
+        "/api/v1/events",
+        headers=AUTH_HEADERS["viewer"],
+        params={"username": "alice", "limit": 10, "offset": 0},
+    )
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["total"] == 1

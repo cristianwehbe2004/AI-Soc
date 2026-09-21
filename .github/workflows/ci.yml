@@ -31,11 +31,12 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     env:
+      APP_ENV: test
       DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/ai_soc_test
       TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/ai_soc_test
       REDIS_URL: redis://localhost:6379/1
       TEST_REDIS_URL: redis://localhost:6379/1
-      SECRET_KEY: ci-test-secret
+      SECRET_KEY: 8be4ce431368431f986eb198f657350fb86594400e1f67e9ed024fec58f316c6
     defaults:
       run:
         working-directory: backend
