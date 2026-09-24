@@ -1,6 +1,6 @@
 COMPOSE_FILE=infra/docker-compose.yml
 
-.PHONY: up down logs build test migrate ml-dataset ml-train ml-evaluate
+.PHONY: up down logs build test frontend-test frontend-build migrate ml-dataset ml-train ml-evaluate
 
 up:
 	docker compose -f $(COMPOSE_FILE) up --build
@@ -16,6 +16,12 @@ build:
 
 test:
 	docker compose -f $(COMPOSE_FILE) run --rm backend pytest
+
+frontend-test:
+	docker compose -f $(COMPOSE_FILE) run --rm frontend npm run test:run
+
+frontend-build:
+	docker compose -f $(COMPOSE_FILE) run --rm frontend npm run build
 
 migrate:
 	docker compose -f $(COMPOSE_FILE) run --rm backend alembic upgrade head

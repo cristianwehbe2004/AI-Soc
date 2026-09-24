@@ -1,7 +1,10 @@
 # Architecture Overview
 
-AI-SOC is a modular monolith with a separate asynchronous investigation process:
+AI-SOC is a modular monolith with a Next.js analyst console and a separate
+asynchronous investigation process:
 
+- Next.js provides memory-only browser authentication state, generated API
+  types, protected layouts, role-aware navigation, and the SOC shell.
 - FastAPI accepts events and exposes incident, MITRE, and investigation APIs.
 - Human requests use short-lived bearer tokens backed by revocable rotating
   sessions; telemetry producers use separately scoped service API keys.
@@ -17,7 +20,7 @@ AI-SOC is a modular monolith with a separate asynchronous investigation process:
 - Docker Compose for local development
 
 Browser development permits credentials only from explicit `CORS_ORIGINS`. The
-future production proxy will serve the frontend and `/api` from one HTTPS origin;
+production proxy contract serves the frontend and `/api` from one HTTPS origin;
 access tokens stay in browser memory and refresh tokens remain HttpOnly cookies.
 
 Event detection and incident correlation remain synchronous for correctness, while

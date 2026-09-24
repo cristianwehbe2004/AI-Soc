@@ -6,7 +6,7 @@ queued AI-assisted investigations.
 
 ## Scope
 
-Implemented through Sprint 8:
+Implemented through Sprint 9:
 
 - normalized event and bulk ingestion
 - rule-based and Isolation Forest alert generation
@@ -16,11 +16,13 @@ Implemented through Sprint 8:
 - Redis investigation queue and standalone worker
 - rotating human authentication sessions, fixed RBAC, scoped ingestion keys,
   login throttling, and append-only audit history
+- Next.js frontend foundation with secure session restoration, generated API
+  types, role-aware navigation, and a responsive SOC application shell
 - PostgreSQL persistence, Alembic migrations, Docker Compose, and automated tests
 
 Still deferred:
 
-- Next.js frontend implementation
+- full event, alert, incident, MITRE, ML, and investigation screens
 - WebSocket streaming
 - AWS deployment
 
@@ -28,8 +30,8 @@ Still deferred:
 
 ```text
 backend/     FastAPI application, tests, migrations, scripts
-frontend/    Placeholder structure
-infra/       Local container orchestration and nginx placeholder
+frontend/    Next.js analyst console
+infra/       Container orchestration and Nginx same-origin gateway
 ml/          ML support files
 simulator/   Synthetic telemetry scenarios
 docs/        Architecture and API notes
@@ -52,7 +54,9 @@ docs/        Architecture and API notes
      python scripts/create_admin.py --email admin@example.com --full-name "SOC Admin"
    ```
 
-4. Open `http://localhost:8000/api/v1/health` or `/docs`.
+4. Open the same-origin analyst console at `http://localhost:8080`, the direct
+   Next.js development server at `http://localhost:3000`, or the API
+   documentation at `http://localhost:8000/docs`.
 
 ## Backend Commands
 
