@@ -2,6 +2,7 @@ import type { RoleName } from "@/lib/api/types";
 
 export type Permission =
   | "soc:read"
+  | "incidents:write"
   | "investigations:create"
   | "users:manage"
   | "api_keys:manage"
@@ -9,9 +10,10 @@ export type Permission =
 
 const ROLE_PERMISSIONS: Record<RoleName, ReadonlySet<Permission>> = {
   viewer: new Set(["soc:read"]),
-  analyst: new Set(["soc:read", "investigations:create"]),
+  analyst: new Set(["soc:read", "incidents:write", "investigations:create"]),
   admin: new Set([
     "soc:read",
+    "incidents:write",
     "investigations:create",
     "users:manage",
     "api_keys:manage",

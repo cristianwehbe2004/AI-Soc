@@ -38,6 +38,7 @@ from app.models.event import Event
 from app.models.incident import Incident, IncidentAlert
 from app.models.investigation import Investigation
 from app.models.model_registry import ModelRegistry
+from app.models.note import IncidentNote
 from app.repositories.mitre_repository import MitreRepository
 from app.security.passwords import hash_password
 from app.security.tokens import create_access_token, hash_secret
@@ -87,6 +88,7 @@ async def clear_detection_tables() -> None:
         await session.execute(delete(AuthSession))
         await session.execute(delete(ServiceApiKey))
         await session.execute(delete(Investigation))
+        await session.execute(delete(IncidentNote))
         await session.execute(delete(IncidentAlert))
         await session.execute(delete(Incident))
         await session.execute(delete(Alert))
