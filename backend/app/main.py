@@ -9,6 +9,7 @@ from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
 from app.db.redis import redis_client
 from app.db.session import engine
+from app.api.v1.endpoints.realtime import manager as realtime_manager
 
 settings = get_settings()
 configure_logging(settings)
@@ -16,7 +17,9 @@ configure_logging(settings)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    await realtime_manager.start()
     yield
+    await realtime_manager.stop()
     await redis_client.aclose()
     await engine.dispose()
 

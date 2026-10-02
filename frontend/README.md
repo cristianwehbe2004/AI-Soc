@@ -15,6 +15,10 @@ The browser application runs at `http://localhost:3000` and uses relative
 development. Docker Compose also provides the same-origin Nginx gateway at
 `http://localhost:8080`.
 
+WebSocket development uses `NEXT_PUBLIC_REALTIME_WS_URL`. Direct local
+development should use `ws://localhost:8000/api/v1/realtime`; Docker should use
+the gateway URL, for example `ws://localhost:8080/api/v1/realtime`.
+
 ## Authentication
 
 - Access tokens exist only in application memory.

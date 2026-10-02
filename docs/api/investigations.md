@@ -4,8 +4,10 @@ Sprint 7 runs investigation outside event ingestion. PostgreSQL stores job state
 and results, Redis carries investigation IDs, and the worker executes the typed
 LangGraph workflow.
 
-AI investigation is disabled by default. Configure `LLM_ENABLED=true`,
-`LLM_PROVIDER=openai`, `LLM_API_KEY`, and `LLM_MODEL` before submitting jobs.
+Configure `LLM_ENABLED=true`, `LLM_PROVIDER=google`, `LLM_API_KEY`,
+`LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/`, and
+`LLM_MODEL=gemini-2.5-flash` before submitting jobs. The Google AI Studio key
+must be stored in the ignored local `backend/.env` file, never committed.
 
 ## Request an investigation
 

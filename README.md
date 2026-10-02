@@ -6,7 +6,7 @@ queued AI-assisted investigations.
 
 ## Scope
 
-Implemented through Sprint 9:
+Implemented through Sprint 11:
 
 - normalized event and bulk ingestion
 - rule-based and Isolation Forest alert generation
@@ -19,11 +19,12 @@ Implemented through Sprint 9:
 - Next.js frontend foundation with secure session restoration, generated API
   types, role-aware navigation, and a responsive SOC application shell
 - PostgreSQL persistence, Alembic migrations, Docker Compose, and automated tests
+- dashboard, event, incident, MITRE, ML, investigation, and analyst-notes UI
+- authenticated WebSocket realtime delivery with Redis Pub/Sub event, alert,
+  incident, and investigation updates
 
 Still deferred:
 
-- full event, alert, incident, MITRE, ML, and investigation screens
-- WebSocket streaming
 - AWS deployment
 
 ## Repository Layout

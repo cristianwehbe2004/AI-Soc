@@ -42,6 +42,11 @@ export interface IncidentML {
   message: string | null;
 }
 
+export interface RealtimeTicket {
+  ticket: string;
+  expires_in: number;
+}
+
 export interface EventFilters {
   start_time?: string;
   end_time?: string;
@@ -81,6 +86,10 @@ function withQuery(path: string, values: object) {
 
 export function getDashboardSummary() {
   return apiRequest<DashboardSummary>("/dashboard/summary");
+}
+
+export function createRealtimeTicket() {
+  return apiRequest<RealtimeTicket>("/auth/realtime-ticket", { method: "POST" });
 }
 
 export function listEvents(filters: EventFilters = {}) {

@@ -59,6 +59,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         ) from None
     request.state.user = user
+    request.state.auth_family_id = claims["family_id"]
     actor_context.set(f"user:{user.id}")
     return user
 

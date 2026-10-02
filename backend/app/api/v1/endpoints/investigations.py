@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -26,6 +27,7 @@ from app.services.investigation_service import (
 from app.security.dependencies import require_permission
 from app.security.permissions import Permission
 from app.services.audit_service import AuditService
+from app.realtime.events import RealtimePublisher
 
 router = APIRouter()
 ReadUser = Annotated[User, Depends(require_permission(Permission.SOC_READ))]
@@ -33,6 +35,7 @@ AnalystUser = Annotated[
     User,
     Depends(require_permission(Permission.INVESTIGATIONS_CREATE)),
 ]
+logger = logging.getLogger(__name__)
 
 
 def get_investigation_service(
@@ -96,6 +99,17 @@ async def request_investigation(
         details={"incident_id": str(incident_id)},
     )
     await service.session.commit()
+    try:
+        await RealtimePublisher(
+            redis_client,
+            channel_prefix=get_settings().realtime_redis_channel_prefix,
+        ).publish(
+            "investigation.queued",
+            entity_id=str(investigation.id),
+            payload=investigation.model_dump(mode="json"),
+        )
+    except Exception:
+        logger.exception("Realtime investigation publication failed", extra={"investigation_id": str(investigation.id)})
     return investigation
 
 

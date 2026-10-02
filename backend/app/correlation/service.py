@@ -26,8 +26,10 @@ class IncidentCorrelationService:
         self.incident_repository = incident_repository
         self.settings = settings
         self.risk_scoring = RiskScoringEngine(settings)
+        self.last_created_ids: set = set()
 
     async def correlate(self, alerts: list[Alert]) -> list[Incident]:
+        self.last_created_ids = set()
         incidents: list[Incident] = []
         for alert in alerts:
             incident = await self._correlate_alert(alert)
@@ -87,6 +89,7 @@ class IncidentCorrelationService:
                 timeline=[],
             )
             incident = await self.incident_repository.create(incident)
+            self.last_created_ids.add(incident.id)
 
         await self.incident_repository.add_alert_links(incident.id, [item.id for item in candidate_alerts])
         all_alerts = await self.incident_repository.get_alerts_for_incident(incident.id)

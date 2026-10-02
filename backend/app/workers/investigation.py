@@ -23,6 +23,8 @@ from app.repositories.event_repository import EventRepository
 from app.repositories.incident_repository import IncidentRepository
 from app.repositories.investigation_repository import InvestigationRepository
 from app.repositories.mitre_repository import MitreRepository
+from app.realtime.events import RealtimePublisher
+from app.schemas.investigation import InvestigationResponse
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +42,7 @@ async def process_investigation(
             await session.rollback()
             return False
         await session.commit()
+        await _publish_status(investigation, "investigation.running", settings)
 
         owns_provider = provider is None
         active_provider = None
@@ -61,6 +64,9 @@ async def process_investigation(
                 incident_id=investigation.incident_id,
             )
             await session.commit()
+            completed = await repository.get(investigation.id)
+            if completed is not None:
+                await _publish_status(completed, "investigation.completed", settings)
             return True
         except Exception as exc:
             await session.rollback()
@@ -77,6 +83,7 @@ async def process_investigation(
                     validation_errors=validation_errors,
                 )
                 await session.commit()
+                await _publish_status(failed, "investigation.failed", settings)
             logger.exception(
                 "Investigation processing failed",
                 extra={"investigation_id": str(investigation_id)},
@@ -85,6 +92,21 @@ async def process_investigation(
         finally:
             if owns_provider and active_provider is not None:
                 await active_provider.aclose()
+
+
+async def _publish_status(investigation, event_type: str, settings) -> None:
+    try:
+        await RealtimePublisher(
+            redis_client,
+            channel_prefix=settings.realtime_redis_channel_prefix,
+        ).publish(
+            event_type,
+            entity_id=str(investigation.id),
+            payload=InvestigationResponse.model_validate(investigation).model_dump(mode="json"),
+            version=int(investigation.updated_at.timestamp() * 1_000_000),
+        )
+    except Exception:
+        logger.exception("Realtime investigation publication failed", extra={"investigation_id": str(investigation.id)})
 
 
 async def run_worker() -> None:

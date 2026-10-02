@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Activity, Search } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { useEvents } from "@/lib/api/hooks";
+import { useRealtime } from "@/components/providers/realtime-provider";
 import type { EventFilters } from "@/lib/api/resources";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/data-state";
@@ -23,6 +24,7 @@ function formatDate(value: string) {
 export default function EventsPage() {
   const [filters, setFilters] = useState<EventFilters>({ limit, offset: 0 });
   const events = useEvents(filters);
+  const realtime = useRealtime();
 
   function applyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -44,7 +46,7 @@ export default function EventsPage() {
       <PageHeading eyebrow="Telemetry" title="Security events" description="Explore normalized authentication, network, application, and cloud telemetry." action={<span className="status-pill neutral"><Activity size={13} /> {events.data?.total ?? "—"} records</span>} />
 
       <form className="filter-panel panel" onSubmit={applyFilters}>
-        <div className="filter-heading"><div><p className="eyebrow">Signal search</p><h2>Filter telemetry</h2></div><button className="secondary-button" type="submit"><Search size={15} /> Apply filters</button></div>
+        <div className="filter-heading"><div><p className="eyebrow">Signal search</p><h2>Filter telemetry</h2></div><div className="filter-actions"><span className={`realtime-status realtime-${realtime.status}`}><span /> {realtime.status}</span>{realtime.newEventCount ? <button className="secondary-button" type="button" onClick={() => { realtime.clearNewEvents(); void events.refetch(); }}>{realtime.newEventCount} new event{realtime.newEventCount === 1 ? "" : "s"}</button> : null}<button className="secondary-button" type="submit"><Search size={15} /> Apply filters</button></div></div>
         <div className="filter-grid">
           <label>Event type<input name="event_type" placeholder="login_failure" /></label>
           <label>Category<select name="category" defaultValue=""><option value="">All categories</option><option value="authentication">Authentication</option><option value="network">Network</option><option value="cloud">Cloud</option><option value="application">Application</option><option value="file_access">File access</option><option value="privilege_change">Privilege change</option><option value="process">Process</option><option value="api">API</option></select></label>

@@ -124,6 +124,23 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/auth/realtime-ticket": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Realtime Ticket */
+        readonly post: operations["realtime_ticket_api_v1_auth_realtime_ticket_post"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/auth/refresh": {
         readonly parameters: {
             readonly query?: never;
@@ -135,6 +152,23 @@ export interface paths {
         readonly put?: never;
         /** Refresh */
         readonly post: operations["refresh_api_v1_auth_refresh_post"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/dashboard/summary": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Get Dashboard Summary */
+        readonly get: operations["get_dashboard_summary_api_v1_dashboard_summary_get"];
+        readonly put?: never;
+        readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -260,6 +294,58 @@ export interface paths {
         readonly options?: never;
         readonly head?: never;
         readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/incidents/{incident_id}/ml": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Get Incident Ml */
+        readonly get: operations["get_incident_ml_api_v1_incidents__incident_id__ml_get"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/incidents/{incident_id}/notes": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List Notes */
+        readonly get: operations["list_notes_api_v1_incidents__incident_id__notes_get"];
+        readonly put?: never;
+        /** Create Note */
+        readonly post: operations["create_note_api_v1_incidents__incident_id__notes_post"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/incidents/{incident_id}/notes/{note_id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        /** Update Note */
+        readonly patch: operations["update_note_api_v1_incidents__incident_id__notes__note_id__patch"];
         readonly trace?: never;
     };
     readonly "/api/v1/investigations/{investigation_id}": {
@@ -587,6 +673,26 @@ export interface components {
             /** New Password */
             readonly new_password: string;
         };
+        /** DashboardSummaryResponse */
+        readonly DashboardSummaryResponse: {
+            /** Alerts Active */
+            readonly alerts_active: number;
+            /**
+             * As Of
+             * Format: date-time
+             */
+            readonly as_of: string;
+            /** Events Total */
+            readonly events_total: number;
+            /** Incidents Open */
+            readonly incidents_open: number;
+            /** Investigations Active */
+            readonly investigations_active: number;
+            /** Model Status */
+            readonly model_status: string;
+            /** Model Version */
+            readonly model_version: string | null;
+        };
         /** EventBulkCreate */
         readonly EventBulkCreate: {
             /** Events */
@@ -827,6 +933,8 @@ export interface components {
              * Format: date-time
              */
             readonly last_seen: string;
+            /** Notes */
+            readonly notes: readonly components["schemas"]["IncidentNoteResponse"][];
             /** Primary Source Ip */
             readonly primary_source_ip: string | null;
             /** Primary Username */
@@ -901,6 +1009,72 @@ export interface components {
             readonly offset: number;
             /** Total */
             readonly total: number;
+        };
+        /** IncidentMLResponse */
+        readonly IncidentMLResponse: {
+            /** Explanation */
+            readonly explanation: readonly string[];
+            /** Feature Version */
+            readonly feature_version: string | null;
+            /** Features */
+            readonly features: {
+                readonly [key: string]: number;
+            };
+            /** Is Anomaly */
+            readonly is_anomaly: boolean | null;
+            /** Message */
+            readonly message: string | null;
+            /** Model Version */
+            readonly model_version: string | null;
+            /** Score */
+            readonly score: number | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            readonly status: "available" | "unavailable";
+            /** Threshold */
+            readonly threshold: number | null;
+        };
+        /** IncidentNoteCreate */
+        readonly IncidentNoteCreate: {
+            /** Content */
+            readonly content: string;
+        };
+        /** IncidentNoteResponse */
+        readonly IncidentNoteResponse: {
+            /**
+             * Author Id
+             * Format: uuid
+             */
+            readonly author_id: string;
+            /** Content */
+            readonly content: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            readonly created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
+            /**
+             * Incident Id
+             * Format: uuid
+             */
+            readonly incident_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            readonly updated_at: string;
+        };
+        /** IncidentNoteUpdate */
+        readonly IncidentNoteUpdate: {
+            /** Content */
+            readonly content: string;
         };
         /** InvestigationListResponse */
         readonly InvestigationListResponse: {
@@ -1044,6 +1218,13 @@ export interface components {
             readonly updated_at: string;
             /** Version */
             readonly version: string;
+        };
+        /** RealtimeTicketResponse */
+        readonly RealtimeTicketResponse: {
+            /** Expires In */
+            readonly expires_in: number;
+            /** Ticket */
+            readonly ticket: string;
         };
         /** Recommendation */
         readonly Recommendation: {
@@ -1457,6 +1638,26 @@ export interface operations {
             };
         };
     };
+    readonly realtime_ticket_api_v1_auth_realtime_ticket_post: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RealtimeTicketResponse"];
+                };
+            };
+        };
+    };
     readonly refresh_api_v1_auth_refresh_post: {
         readonly parameters: {
             readonly query?: never;
@@ -1473,6 +1674,26 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+        };
+    };
+    readonly get_dashboard_summary_api_v1_dashboard_summary_get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["DashboardSummaryResponse"];
                 };
             };
         };
@@ -1749,6 +1970,139 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["InvestigationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly get_incident_ml_api_v1_incidents__incident_id__ml_get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly incident_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IncidentMLResponse"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly list_notes_api_v1_incidents__incident_id__notes_get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly incident_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": readonly components["schemas"]["IncidentNoteResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly create_note_api_v1_incidents__incident_id__notes_post: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly incident_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["IncidentNoteCreate"];
+            };
+        };
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IncidentNoteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly update_note_api_v1_incidents__incident_id__notes__note_id__patch: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly incident_id: string;
+                readonly note_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["IncidentNoteUpdate"];
+            };
+        };
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IncidentNoteResponse"];
                 };
             };
             /** @description Validation Error */

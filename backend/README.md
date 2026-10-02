@@ -26,7 +26,7 @@ Read the seeded catalog at `GET /api/v1/mitre/techniques`, inspect one technique
 
 ## AI Investigation
 
-AI investigation is disabled by default. When configured, `POST /api/v1/incidents/{incident_id}/investigations` creates an idempotent queued job. The worker runs a validated LangGraph workflow and persists the result for `GET /api/v1/investigations/{investigation_id}`. See `docs/api/investigations.md` for the API contract and safety boundary.
+AI investigation defaults to Google AI Studio's free-tier-compatible `gemini-2.5-flash` configuration in `.env.example`. Set `LLM_API_KEY` to a key created in Google AI Studio before starting the worker. `POST /api/v1/incidents/{incident_id}/investigations` creates an idempotent queued job. The worker runs a validated LangGraph workflow and persists the result for `GET /api/v1/investigations/{investigation_id}`. See `docs/api/investigations.md` for the API contract and safety boundary.
 
 ## ML Workflow
 

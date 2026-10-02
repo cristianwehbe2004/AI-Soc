@@ -608,6 +608,57 @@
         "title": "ChangePasswordRequest",
         "type": "object"
       },
+      "DashboardSummaryResponse": {
+        "properties": {
+          "alerts_active": {
+            "title": "Alerts Active",
+            "type": "integer"
+          },
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "events_total": {
+            "title": "Events Total",
+            "type": "integer"
+          },
+          "incidents_open": {
+            "title": "Incidents Open",
+            "type": "integer"
+          },
+          "investigations_active": {
+            "title": "Investigations Active",
+            "type": "integer"
+          },
+          "model_status": {
+            "title": "Model Status",
+            "type": "string"
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          }
+        },
+        "required": [
+          "events_total",
+          "incidents_open",
+          "alerts_active",
+          "investigations_active",
+          "model_status",
+          "model_version",
+          "as_of"
+        ],
+        "title": "DashboardSummaryResponse",
+        "type": "object"
+      },
       "EventBulkCreate": {
         "properties": {
           "events": {
@@ -1400,6 +1451,13 @@
             "title": "Last Seen",
             "type": "string"
           },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/IncidentNoteResponse"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
           "primary_source_ip": {
             "anyOf": [
               {
@@ -1473,7 +1531,8 @@
           "updated_at",
           "timeline",
           "alerts",
-          "techniques"
+          "techniques",
+          "notes"
         ],
         "title": "IncidentDetail",
         "type": "object"
@@ -1594,6 +1653,184 @@
           "items"
         ],
         "title": "IncidentListResponse",
+        "type": "object"
+      },
+      "IncidentMLResponse": {
+        "properties": {
+          "explanation": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Explanation",
+            "type": "array"
+          },
+          "feature_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feature Version"
+          },
+          "features": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Features",
+            "type": "object"
+          },
+          "is_anomaly": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Anomaly"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "status": {
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold"
+          }
+        },
+        "required": [
+          "status",
+          "model_version",
+          "feature_version",
+          "score",
+          "threshold",
+          "is_anomaly",
+          "features",
+          "explanation",
+          "message"
+        ],
+        "title": "IncidentMLResponse",
+        "type": "object"
+      },
+      "IncidentNoteCreate": {
+        "properties": {
+          "content": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "IncidentNoteCreate",
+        "type": "object"
+      },
+      "IncidentNoteResponse": {
+        "properties": {
+          "author_id": {
+            "format": "uuid",
+            "title": "Author Id",
+            "type": "string"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "incident_id": {
+            "format": "uuid",
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "incident_id",
+          "author_id",
+          "content",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "IncidentNoteResponse",
+        "type": "object"
+      },
+      "IncidentNoteUpdate": {
+        "properties": {
+          "content": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "IncidentNoteUpdate",
         "type": "object"
       },
       "InvestigationListResponse": {
@@ -1979,6 +2216,24 @@
           "updated_at"
         ],
         "title": "MitreTechniqueResponse",
+        "type": "object"
+      },
+      "RealtimeTicketResponse": {
+        "properties": {
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "ticket": {
+            "title": "Ticket",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticket",
+          "expires_in"
+        ],
+        "title": "RealtimeTicketResponse",
         "type": "object"
       },
       "Recommendation": {
@@ -2903,6 +3158,32 @@
         ]
       }
     },
+    "/api/v1/auth/realtime-ticket": {
+      "post": {
+        "operationId": "realtime_ticket_api_v1_auth_realtime_ticket_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RealtimeTicketResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Realtime Ticket",
+        "tags": [
+          "authentication"
+        ]
+      }
+    },
     "/api/v1/auth/refresh": {
       "post": {
         "operationId": "refresh_api_v1_auth_refresh_post",
@@ -2921,6 +3202,32 @@
         "summary": "Refresh",
         "tags": [
           "authentication"
+        ]
+      }
+    },
+    "/api/v1/dashboard/summary": {
+      "get": {
+        "operationId": "get_dashboard_summary_api_v1_dashboard_summary_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Dashboard Summary",
+        "tags": [
+          "dashboard"
         ]
       }
     },
@@ -3565,6 +3872,230 @@
         "summary": "Request Investigation",
         "tags": [
           "investigations"
+        ]
+      }
+    },
+    "/api/v1/incidents/{incident_id}/ml": {
+      "get": {
+        "operationId": "get_incident_ml_api_v1_incidents__incident_id__ml_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentMLResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Incident Ml",
+        "tags": [
+          "incident-context"
+        ]
+      }
+    },
+    "/api/v1/incidents/{incident_id}/notes": {
+      "get": {
+        "operationId": "list_notes_api_v1_incidents__incident_id__notes_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/IncidentNoteResponse"
+                  },
+                  "title": "Response List Notes Api V1 Incidents  Incident Id  Notes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Notes",
+        "tags": [
+          "incident-context"
+        ]
+      },
+      "post": {
+        "operationId": "create_note_api_v1_incidents__incident_id__notes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncidentNoteCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentNoteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Create Note",
+        "tags": [
+          "incident-context"
+        ]
+      }
+    },
+    "/api/v1/incidents/{incident_id}/notes/{note_id}": {
+      "patch": {
+        "operationId": "update_note_api_v1_incidents__incident_id__notes__note_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "note_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Note Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncidentNoteUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentNoteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Update Note",
+        "tags": [
+          "incident-context"
         ]
       }
     },

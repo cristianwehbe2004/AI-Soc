@@ -10,6 +10,7 @@ from app.api.v1.endpoints.incidents import router as incidents_router
 from app.api.v1.endpoints.incident_context import router as incident_context_router
 from app.api.v1.endpoints.investigations import router as investigations_router
 from app.api.v1.endpoints.mitre import router as mitre_router
+from app.api.v1.endpoints.realtime import router as realtime_router
 from app.api.v1.endpoints.users import router as users_router
 
 router = APIRouter()
@@ -21,6 +22,7 @@ router.include_router(incidents_router, tags=["incidents"])
 router.include_router(incident_context_router, tags=["incident-context"])
 router.include_router(investigations_router, tags=["investigations"])
 router.include_router(mitre_router, tags=["mitre"])
+router.include_router(realtime_router, tags=["realtime"])
 router.include_router(users_router, tags=["users"])
 router.include_router(api_keys_router, tags=["api-keys"])
 router.include_router(audit_router, tags=["audit"])

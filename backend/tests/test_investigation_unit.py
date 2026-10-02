@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.investigation.context import InvestigationContextBuilder
 from app.investigation.provider import (
     LLMProviderDisabledError,
+    GoogleAIStudioProvider,
     OpenAIProvider,
     build_llm_provider,
 )
@@ -49,6 +50,36 @@ class FakeOpenAIClient:
         self.responses = FakeResponses()
 
 
+class FakeChatCompletions:
+    def __init__(self) -> None:
+        self.kwargs = None
+
+    async def create(self, **kwargs):
+        self.kwargs = kwargs
+        return SimpleNamespace(
+            id="gemini_test",
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(
+                        content=json.dumps(
+                            {
+                                "executive_summary": "Credential compromise detected.",
+                                "attack_story": "Failures preceded a successful login.",
+                                "confidence": 0.9,
+                            }
+                        )
+                    )
+                )
+            ],
+            usage=SimpleNamespace(prompt_tokens=14, completion_tokens=9),
+        )
+
+
+class FakeGoogleClient:
+    def __init__(self) -> None:
+        self.chat = SimpleNamespace(completions=FakeChatCompletions())
+
+
 class FakeRedis:
     def __init__(self) -> None:
         self.items = []
@@ -82,6 +113,37 @@ async def test_openai_provider_uses_structured_responses_api() -> None:
     assert result.output_tokens == 8
     assert client.responses.kwargs["text_format"] is InvestigationNarrative
     assert client.responses.kwargs["store"] is False
+
+
+@pytest.mark.anyio
+async def test_google_provider_uses_structured_chat_completions() -> None:
+    settings = get_settings().model_copy(
+        update={"llm_provider": "google", "llm_api_key": "test-key", "llm_model": "gemini-2.5-flash"}
+    )
+    client = FakeGoogleClient()
+    provider = GoogleAIStudioProvider(settings, client=client)
+
+    result = await provider.generate_structured(
+        instructions="Investigate defensively.",
+        payload={"incident_id": "inc-1"},
+        response_model=InvestigationNarrative,
+    )
+
+    assert result.response_id == "gemini_test"
+    assert result.input_tokens == 14
+    assert result.output_tokens == 9
+    assert client.chat.completions.kwargs["response_format"]["type"] == "json_schema"
+    assert client.chat.completions.kwargs["model"] == "gemini-2.5-flash"
+
+
+def test_provider_factory_supports_google_ai_studio() -> None:
+    settings = get_settings().model_copy(
+        update={"llm_enabled": True, "llm_provider": "google", "llm_api_key": "test-key"}
+    )
+
+    provider = build_llm_provider(settings)
+
+    assert isinstance(provider, GoogleAIStudioProvider)
 
 
 def test_provider_factory_rejects_disabled_configuration() -> None:

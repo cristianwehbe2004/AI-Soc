@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     llm_enabled: bool = Field(default=False, alias="LLM_ENABLED")
     llm_provider: str = Field(default="disabled", alias="LLM_PROVIDER")
     llm_api_key: str | None = Field(default=None, alias="LLM_API_KEY")
+    llm_base_url: str | None = Field(default=None, alias="LLM_BASE_URL")
     llm_model: str = Field(default="gpt-5-mini", alias="LLM_MODEL")
     llm_timeout_seconds: float = Field(default=60.0, gt=0, alias="LLM_TIMEOUT_SECONDS")
     llm_max_retries: int = Field(default=2, ge=0, le=10, alias="LLM_MAX_RETRIES")
@@ -45,6 +46,14 @@ class Settings(BaseSettings):
         le=60,
         alias="INVESTIGATION_WORKER_BLOCK_SECONDS",
     )
+    realtime_ws_path: str = Field(default="/api/v1/realtime", alias="REALTIME_WS_PATH")
+    realtime_redis_channel_prefix: str = Field(
+        default="ai_soc:realtime", alias="REALTIME_REDIS_CHANNEL_PREFIX"
+    )
+    realtime_ticket_ttl_seconds: int = Field(default=60, ge=10, le=300, alias="REALTIME_TICKET_TTL_SECONDS")
+    realtime_heartbeat_seconds: int = Field(default=20, ge=5, le=120, alias="REALTIME_HEARTBEAT_SECONDS")
+    realtime_max_connections: int = Field(default=1000, ge=1, le=10000, alias="REALTIME_MAX_CONNECTIONS")
+    realtime_max_message_bytes: int = Field(default=262144, ge=1024, le=1048576, alias="REALTIME_MAX_MESSAGE_BYTES")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     brute_force_threshold: int = Field(default=10, alias="BRUTE_FORCE_THRESHOLD")
     brute_force_window_seconds: int = Field(default=60, alias="BRUTE_FORCE_WINDOW_SECONDS")

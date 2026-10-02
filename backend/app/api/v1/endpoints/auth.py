@@ -14,6 +14,8 @@ from app.repositories.audit_repository import AuditRepository
 from app.repositories.auth_repository import AuthSessionRepository, UserRepository
 from app.schemas.auth import ChangePasswordRequest, MessageResponse, TokenResponse, UserResponse
 from app.security.dependencies import get_current_user
+from app.realtime.tickets import RealtimeTicketStore
+from app.schemas.realtime import RealtimeTicketResponse
 from app.security.rate_limit import LoginRateLimiter
 from app.services.audit_service import AuditService
 from app.services.auth_service import (
@@ -92,6 +94,22 @@ async def logout(
 @router.get("/me", response_model=UserResponse)
 async def me(user: Annotated[User, Depends(get_current_user)]) -> UserResponse:
     return UserResponse.model_validate(user)
+
+
+@router.post("/realtime-ticket", response_model=RealtimeTicketResponse)
+async def realtime_ticket(
+    request: Request,
+    user: Annotated[User, Depends(get_current_user)],
+) -> RealtimeTicketResponse:
+    ticket = await RealtimeTicketStore(
+        redis_client,
+        key_prefix=get_settings().realtime_redis_channel_prefix,
+        ttl_seconds=get_settings().realtime_ticket_ttl_seconds,
+    ).issue(user.id, request.state.auth_family_id)
+    return RealtimeTicketResponse(
+        ticket=ticket,
+        expires_in=get_settings().realtime_ticket_ttl_seconds,
+    )
 
 
 @router.post("/change-password", response_model=MessageResponse)
