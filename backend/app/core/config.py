@@ -46,6 +46,15 @@ class Settings(BaseSettings):
         le=60,
         alias="INVESTIGATION_WORKER_BLOCK_SECONDS",
     )
+    automatic_investigations_enabled: bool = Field(
+        default=False, alias="AUTOMATIC_INVESTIGATIONS_ENABLED"
+    )
+    automatic_investigation_min_severity: str = Field(
+        default="critical", alias="AUTOMATIC_INVESTIGATION_MIN_SEVERITY"
+    )
+    automatic_investigation_cooldown_seconds: int = Field(
+        default=3600, ge=60, le=86400, alias="AUTOMATIC_INVESTIGATION_COOLDOWN_SECONDS"
+    )
     realtime_ws_path: str = Field(default="/api/v1/realtime", alias="REALTIME_WS_PATH")
     realtime_redis_channel_prefix: str = Field(
         default="ai_soc:realtime", alias="REALTIME_REDIS_CHANNEL_PREFIX"

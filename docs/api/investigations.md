@@ -9,6 +9,12 @@ Configure `LLM_ENABLED=true`, `LLM_PROVIDER=google`, `LLM_API_KEY`,
 `LLM_MODEL=gemini-2.5-flash` before submitting jobs. The Google AI Studio key
 must be stored in the ignored local `backend/.env` file, never committed.
 
+Automatic investigations are disabled by default. To enable them, set
+`AUTOMATIC_INVESTIGATIONS_ENABLED=true` and choose a minimum severity with
+`AUTOMATIC_INVESTIGATION_MIN_SEVERITY`. The dispatcher applies a per-incident
+Redis cooldown from `AUTOMATIC_INVESTIGATION_COOLDOWN_SECONDS` and preserves the
+existing investigation idempotency and evidence-validation boundaries.
+
 ## Request an investigation
 
 `POST /api/v1/incidents/{incident_id}/investigations`

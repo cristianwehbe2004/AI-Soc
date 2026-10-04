@@ -27,6 +27,7 @@ from app.db.redis import redis_client
 from app.realtime.events import RealtimePublisher
 from app.schemas.alert import AlertResponse
 from app.schemas.incident import IncidentListItem
+from app.investigation.automation import AutomaticInvestigationDispatcher
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,7 @@ class EventService:
             incidents = await self.correlation_service.correlate(alerts)
         await self.session.commit()
         await self._publish_realtime(created, alerts, incidents)
+        await AutomaticInvestigationDispatcher(self.session, redis_client, self.settings).dispatch(incidents)
         return EventIngestResponse(id=created.id, event_id=created.event_id, accepted=True)
 
     async def create_events_bulk(self, payload: EventBulkCreate) -> EventBulkIngestResponse:
@@ -76,6 +78,8 @@ class EventService:
                 incidents = await self.correlation_service.correlate(alerts)
             realtime_items.append((created_event, alerts, incidents, set(self.correlation_service.last_created_ids)))
         await self.session.commit()
+        all_incidents = {incident.id: incident for _, _, incidents, _ in realtime_items for incident in incidents}
+        await AutomaticInvestigationDispatcher(self.session, redis_client, self.settings).dispatch(all_incidents.values())
         for created_event, alerts, incidents, created_ids in realtime_items:
             await self._publish_realtime(created_event, alerts, incidents, created_ids=created_ids)
         items = [EventIngestResponse(id=event.id, event_id=event.event_id, accepted=True) for event in created]
