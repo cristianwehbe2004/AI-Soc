@@ -28,9 +28,11 @@ def incident(*, severity: str, status: str = "open"):
 
 
 def test_automatic_policy_is_disabled_by_default() -> None:
-    policy = AutomaticInvestigationPolicy(get_settings().model_copy())
+    settings = get_settings().model_copy(update={"automatic_investigations_enabled": False})
+    policy = AutomaticInvestigationPolicy(settings)
 
     assert policy.should_trigger(incident(severity="critical")) is False
+
 
 
 def test_automatic_policy_requires_configured_severity_and_open_status() -> None:

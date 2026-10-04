@@ -63,13 +63,15 @@ class InvestigationContextBuilder:
             }
             for technique in techniques
         ]
-        valid_refs = [f"alert:{alert.id}" for alert in alerts]
+        valid_refs = [f"incident:{incident.id}"]
+        valid_refs.extend(f"alert:{alert.id}" for alert in alerts)
         valid_refs.extend(
             f"event:{event['event_id']}" for event in event_context
         )
         valid_refs.extend(
             f"mitre:{technique['technique_id']}" for technique in technique_context
         )
+
         context = InvestigationContext(
             incident={
                 "id": str(incident.id),

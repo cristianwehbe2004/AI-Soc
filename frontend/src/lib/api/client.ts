@@ -1,3 +1,4 @@
+import { prehashPassword } from "../auth/prehash";
 import type { ApiErrorBody, ApiUser, TokenResponse } from "./types";
 
 const API_BASE_URL =
@@ -6,6 +7,7 @@ const API_BASE_URL =
 let accessToken: string | null = null;
 let refreshPromise: Promise<TokenResponse | null> | null = null;
 const sessionListeners = new Set<(session: TokenResponse | null) => void>();
+
 
 export class ApiError extends Error {
   constructor(
@@ -138,7 +140,8 @@ export async function apiRequest<T>(
 }
 
 export async function loginSession(email: string, password: string) {
-  const form = new URLSearchParams({ username: email, password });
+  const prehashed = await prehashPassword(password, email);
+  const form = new URLSearchParams({ username: email, password: prehashed });
   const session = await rawRequest<TokenResponse>("/auth/login", {
     method: "POST",
     auth: false,
@@ -149,6 +152,27 @@ export async function loginSession(email: string, password: string) {
   publishSession(session);
   return session;
 }
+
+export async function registerSession(
+  fullName: string,
+  email: string,
+  password: string,
+) {
+  const prehashed = await prehashPassword(password, email);
+  const session = await rawRequest<TokenResponse>("/auth/register", {
+    method: "POST",
+    auth: false,
+    retryAuth: false,
+    body: JSON.stringify({
+      full_name: fullName,
+      email,
+      password: prehashed,
+    }),
+  });
+  publishSession(session);
+  return session;
+}
+
 
 export async function logoutSession() {
   try {

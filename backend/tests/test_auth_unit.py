@@ -28,6 +28,9 @@ class FakeRedis:
     async def mget(self, *keys):
         return [self.values.get(key) for key in keys]
 
+    async def get(self, key):
+        return self.values.get(key)
+
     async def incr(self, key):
         self.values[key] = self.values.get(key, 0) + 1
         return self.values[key]
@@ -37,6 +40,7 @@ class FakeRedis:
 
     async def delete(self, key):
         self.values.pop(key, None)
+
 
 
 def test_password_hashing_and_email_normalization() -> None:
@@ -127,3 +131,16 @@ async def test_login_rate_limiter_tracks_account_and_ip() -> None:
     )
     await limiter.clear_account(email)
     assert not await limiter.is_limited(email, "192.0.2.11")
+
+
+@pytest.mark.anyio
+async def test_registration_rate_limiter() -> None:
+    redis = FakeRedis()
+    limiter = LoginRateLimiter(redis, get_settings())
+    source_ip = "192.0.2.20"
+
+    assert not await limiter.is_register_limited(source_ip)
+    for _ in range(5):
+        await limiter.record_register_attempt(source_ip)
+    assert await limiter.is_register_limited(source_ip)
+

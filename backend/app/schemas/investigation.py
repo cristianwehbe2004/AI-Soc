@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-InvestigationStatus = Literal["queued", "running", "completed", "failed"]
+InvestigationStatus = Literal["queued", "running", "completed", "failed", "cancelled", "dead_letter"]
 AnalysisSeverity = Literal["low", "medium", "high", "critical"]
 RecommendationPriority = Literal["low", "medium", "high", "urgent"]
 
@@ -91,9 +91,11 @@ class InvestigationResponse(BaseModel):
     validation_errors: list[str]
     provider_response_ids: list[str]
     error: str | None
+    error_class: str | None = None
     input_tokens: int
     output_tokens: int
     attempt_count: int
+    next_retry_at: datetime | None = None
     queued_at: datetime
     started_at: datetime | None
     completed_at: datetime | None

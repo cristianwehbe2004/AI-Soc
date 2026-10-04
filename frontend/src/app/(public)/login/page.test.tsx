@@ -5,16 +5,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import LoginPage from "./page";
 
 const login = vi.fn();
+const register = vi.fn();
 const replace = vi.fn();
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 vi.mock("@/components/providers/auth-provider", () => ({
-  useAuth: () => ({ status: "anonymous", login }),
+  useAuth: () => ({ status: "anonymous", login, register }),
 }));
 
 describe("login page", () => {
   beforeEach(() => {
     login.mockReset();
+    register.mockReset();
     replace.mockReset();
   });
 
@@ -41,4 +43,23 @@ describe("login page", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Wait 15 minutes");
   });
+
+  it("allows analyst registration via Sign Up mode", async () => {
+    const user = userEvent.setup();
+    register.mockResolvedValue(undefined);
+    render(<LoginPage />);
+
+    await user.click(screen.getByRole("button", { name: "Sign Up" }));
+    await user.type(screen.getByLabelText("Full Name"), "Jane Analyst");
+    await user.type(screen.getByLabelText("Email address"), "new.analyst@example.com");
+    await user.type(screen.getByLabelText("Password", { exact: true }), "Strong-Pass-1234");
+    await user.type(screen.getByLabelText("Confirm Password"), "Strong-Pass-1234");
+
+    fireEvent.submit(screen.getByRole("button", { name: "Complete Sign Up" }).closest("form")!);
+
+    await waitFor(() =>
+      expect(register).toHaveBeenCalledWith("Jane Analyst", "new.analyst@example.com", "Strong-Pass-1234")
+    );
+  });
 });
+

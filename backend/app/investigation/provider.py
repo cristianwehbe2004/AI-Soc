@@ -21,6 +21,18 @@ class LLMProviderDisabledError(LLMProviderError):
     pass
 
 
+class LLMProviderTransientError(LLMProviderError):
+    """Raised for errors that are safe to retry: 5xx, network timeouts."""
+
+
+class LLMProviderQuotaError(LLMProviderTransientError):
+    """Raised for 429 rate-limit / quota-exceeded. Carries a retry_after hint (seconds)."""
+
+    def __init__(self, message: str, retry_after: int = 60) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
 @dataclass(frozen=True)
 class ProviderResult(Generic[OutputModel]):
     output: OutputModel
@@ -102,7 +114,7 @@ class OpenAIProvider(LLMProvider):
 
 class GoogleAIStudioProvider(LLMProvider):
     name = "google"
-    default_base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    default_base_url = "https://generativelanguage.googleapis.com/v1beta/openai"
 
     def __init__(
         self,
@@ -114,9 +126,15 @@ class GoogleAIStudioProvider(LLMProvider):
             raise LLMProviderDisabledError("LLM_API_KEY is required for Google AI Studio")
         self.model = settings.llm_model
         self.max_output_tokens = settings.llm_max_output_tokens
+        
+        # Sanitize base_url: strip trailing slashes to prevent double-slash 404 errors
+        base_url = (settings.llm_base_url or self.default_base_url).rstrip("/")
+        if not base_url.endswith("/openai"):
+            base_url = f"{base_url}/openai"
+
         self.client = client or AsyncOpenAI(
             api_key=settings.llm_api_key,
-            base_url=settings.llm_base_url or self.default_base_url,
+            base_url=base_url,
             timeout=settings.llm_timeout_seconds,
             max_retries=settings.llm_max_retries,
         )
@@ -146,6 +164,27 @@ class GoogleAIStudioProvider(LLMProvider):
                 max_tokens=self.max_output_tokens,
             )
         except Exception as exc:
+            err_str = str(exc)
+            if "429" in err_str or "quota" in err_str.lower() or "rate_limit" in err_str.lower():
+                # Parse retry_after from error if available
+                retry_after = 60
+                import re
+                m = re.search(r"retry.?after[\":\s]+(\d+)", err_str, re.IGNORECASE)
+                if m:
+                    retry_after = int(m.group(1))
+                raise LLMProviderQuotaError(
+                    f"Google AI Studio quota/rate-limit: {exc}", retry_after=retry_after
+                ) from exc
+            if "404" in err_str or "NOT_FOUND" in err_str:
+                raise LLMProviderError(
+                    f"Google AI Studio 404 Error: Model '{self.model}' or endpoint not found. "
+                    f"Ensure LLM_MODEL is a valid Gemini model (e.g. gemini-1.5-flash) and "
+                    f"LLM_API_KEY is a valid Google AI Studio key starting with 'AIzaSy...'. Error details: {exc}"
+                ) from exc
+            if any(code in err_str for code in ("500", "502", "503", "504")):
+                raise LLMProviderTransientError(
+                    f"Google AI Studio transient error: {exc}"
+                ) from exc
             raise LLMProviderError(f"Google AI Studio response failed: {exc}") from exc
 
         content = response.choices[0].message.content if response.choices else None
@@ -167,6 +206,84 @@ class GoogleAIStudioProvider(LLMProvider):
         await self.client.close()
 
 
+class MockProvider(LLMProvider):
+    name = "mock"
+
+    def __init__(self, settings: Settings) -> None:
+        self.model = "mock-gemini-v1"
+
+    async def generate_structured(
+        self,
+        *,
+        instructions: str,
+        payload: dict,
+        response_model: type[OutputModel],
+    ) -> ProviderResult[OutputModel]:
+        import uuid
+        model_name = response_model.__name__
+        valid_refs = payload.get("valid_evidence_refs", [])
+        refs_1 = valid_refs[:1] if valid_refs else []
+        refs_2 = valid_refs[1:2] if len(valid_refs) > 1 else refs_1
+
+        if model_name == "EvidenceAnalysis":
+            mock_data = {
+                "findings": [
+                    {
+                        "title": "Rapid Login Failures (Brute-Force Pattern)",
+                        "severity": "high",
+                        "confidence": 0.95,
+                        "summary": "Observed multiple sequential authentication failures from target source IP.",
+                        "evidence_refs": refs_1,
+                    }
+                ],
+                "gaps": ["No endpoint EDR memory telemetry provided."],
+                "uncertainties": ["Unclear if user credentials were stolen."],
+            }
+        elif model_name == "RiskAnalysis":
+            mock_data = {
+                "score": 85,
+                "severity": "critical",
+                "rationale": "Authentication failure burst combined with elevated role escalation.",
+                "factors": ["Repeated login failure burst", "Privilege change event"],
+            }
+        elif model_name == "InvestigationNarrative":
+            mock_data = {
+                "executive_summary": "Automated security investigation completed. Attack pattern aligns with credential access and privilege escalation.",
+                "attack_story": "An external entity initiated multiple authentication attempts before gaining access and attempting role elevation.",
+                "confidence": 0.92,
+            }
+        elif model_name == "RecommendationSet":
+            mock_data = {
+                "recommendations": [
+                    {
+                        "title": "Revoke Compromised User Sessions",
+                        "priority": "urgent",
+                        "rationale": "Prevent unauthorized persistence after authentication burst.",
+                        "actions": ["Revoke active refresh tokens", "Force password reset"],
+                        "evidence_refs": refs_1,
+                    },
+                    {
+                        "title": "Block Malicious Source IP",
+                        "priority": "high",
+                        "rationale": "Mitigate incoming brute force attempts.",
+                        "actions": ["Add IP to perimeter blocklist"],
+                        "evidence_refs": refs_2,
+                    },
+                ]
+            }
+        else:
+            mock_data = {}
+
+        output = response_model.model_validate(mock_data)
+        return ProviderResult(
+            output=output,
+            response_id=f"mock-{uuid.uuid4().hex[:8]}",
+            input_tokens=150,
+            output_tokens=300,
+        )
+
+
+
 def build_llm_provider(settings: Settings) -> LLMProvider:
     provider_name = settings.llm_provider.lower()
     if not settings.llm_enabled or provider_name == "disabled":
@@ -175,4 +292,7 @@ def build_llm_provider(settings: Settings) -> LLMProvider:
         return OpenAIProvider(settings)
     if provider_name in {"google", "google_ai_studio", "gemini"}:
         return GoogleAIStudioProvider(settings)
+    if provider_name == "mock":
+        return MockProvider(settings)
     raise LLMProviderError(f"Unsupported LLM provider: {settings.llm_provider}")
+

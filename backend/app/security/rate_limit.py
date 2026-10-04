@@ -27,6 +27,16 @@ class LoginRateLimiter:
     async def clear_account(self, email: str) -> None:
         await self.redis.delete(self._account_key(email))
 
+    async def is_register_limited(self, source_ip: str) -> bool:
+        ip_count = await self.redis.get(self._register_ip_key(source_ip))
+        return int(ip_count or 0) >= 5  # Max 5 registrations per window per IP
+
+    async def record_register_attempt(self, source_ip: str) -> None:
+        key = self._register_ip_key(source_ip)
+        count = await self.redis.incr(key)
+        if count == 1:
+            await self.redis.expire(key, self.settings.auth_login_window_seconds)
+
     @staticmethod
     def _digest(value: str) -> str:
         return hashlib.sha256(value.encode("utf-8")).hexdigest()
@@ -36,3 +46,7 @@ class LoginRateLimiter:
 
     def _ip_key(self, source_ip: str) -> str:
         return f"ai_soc:auth:ip:{self._digest(source_ip)}"
+
+    def _register_ip_key(self, source_ip: str) -> str:
+        return f"ai_soc:auth:register_ip:{self._digest(source_ip)}"
+

@@ -12,7 +12,13 @@ from app.db.session import get_db_session
 from app.models.auth import User
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.auth_repository import AuthSessionRepository, UserRepository
-from app.schemas.auth import ChangePasswordRequest, MessageResponse, TokenResponse, UserResponse
+from app.schemas.auth import (
+    ChangePasswordRequest,
+    MessageResponse,
+    TokenResponse,
+    UserRegister,
+    UserResponse,
+)
 from app.security.dependencies import get_current_user
 from app.realtime.tickets import RealtimeTicketStore
 from app.schemas.realtime import RealtimeTicketResponse
@@ -23,6 +29,7 @@ from app.services.auth_service import (
     InvalidCredentialsError,
     LoginRateLimitedError,
     RefreshTokenError,
+    UserAlreadyExistsError,
 )
 
 router = APIRouter(prefix="/auth")
@@ -55,6 +62,24 @@ async def login(
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
     _set_refresh_cookie(response, result.refresh_token, get_settings())
     return result.response
+
+
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+async def register(
+    request: Request,
+    response: Response,
+    payload: UserRegister,
+    service: Annotated[AuthService, Depends(get_auth_service)],
+) -> TokenResponse:
+    try:
+        result = await service.register(payload=payload, request=request)
+    except UserAlreadyExistsError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except LoginRateLimitedError as exc:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
+    _set_refresh_cookie(response, result.refresh_token, get_settings())
+    return result.response
+
 
 
 @router.post("/refresh", response_model=TokenResponse)

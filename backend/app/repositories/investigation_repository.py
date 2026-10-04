@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -71,6 +71,8 @@ class InvestigationRepository:
                 started_at=now,
                 completed_at=None,
                 error=None,
+                error_class=None,
+                next_retry_at=None,
                 attempt_count=Investigation.attempt_count + 1,
                 updated_at=now,
             )
@@ -78,14 +80,44 @@ class InvestigationRepository:
         )
         return result.scalar_one_or_none()
 
-    async def requeue(self, investigation: Investigation) -> Investigation:
+    async def requeue(
+        self,
+        investigation: Investigation,
+        *,
+        reset_attempts: bool = False,
+    ) -> Investigation:
         now = datetime.now(UTC)
         investigation.status = "queued"
         investigation.queued_at = now
         investigation.started_at = None
         investigation.completed_at = None
         investigation.error = None
+        investigation.error_class = None
+        investigation.next_retry_at = None
         investigation.validation_errors = []
+        if reset_attempts:
+            investigation.attempt_count = 0
+        investigation.updated_at = now
+        await self.session.flush()
+        return investigation
+
+    async def schedule_retry(
+        self,
+        investigation: Investigation,
+        *,
+        delay_seconds: int,
+        error: str,
+        error_class: str,
+    ) -> Investigation:
+        now = datetime.now(UTC)
+        scheduled_time = now + timedelta(seconds=delay_seconds)
+        investigation.status = "queued"
+        investigation.queued_at = scheduled_time
+        investigation.next_retry_at = scheduled_time
+        investigation.error = error[:4000]
+        investigation.error_class = error_class
+        investigation.started_at = None
+        investigation.completed_at = None
         investigation.updated_at = now
         await self.session.flush()
         return investigation
@@ -119,6 +151,8 @@ class InvestigationRepository:
         investigation.output_tokens = output_tokens
         investigation.validation_errors = []
         investigation.error = None
+        investigation.error_class = None
+        investigation.next_retry_at = None
         investigation.completed_at = now
         investigation.updated_at = now
         await self.session.flush()
@@ -130,12 +164,36 @@ class InvestigationRepository:
         *,
         error: str,
         validation_errors: list[str] | None = None,
+        error_class: str | None = None,
+        status: str = "failed",
     ) -> Investigation:
         now = datetime.now(UTC)
-        investigation.status = "failed"
+        investigation.status = status
         investigation.error = error[:4000]
+        investigation.error_class = error_class
+        investigation.next_retry_at = None
         investigation.validation_errors = validation_errors or []
         investigation.completed_at = now
         investigation.updated_at = now
         await self.session.flush()
         return investigation
+
+    async def cancel(self, investigation: Investigation) -> Investigation:
+        now = datetime.now(UTC)
+        investigation.status = "cancelled"
+        investigation.error = "Cancelled by analyst"
+        investigation.error_class = "cancelled"
+        investigation.next_retry_at = None
+        investigation.completed_at = now
+        investigation.updated_at = now
+        await self.session.flush()
+        return investigation
+
+    async def find_stuck(self, *, started_before: datetime) -> list[Investigation]:
+        result = await self.session.execute(
+            select(Investigation).where(
+                Investigation.status == "running",
+                Investigation.started_at < started_before,
+            )
+        )
+        return list(result.scalars().all())

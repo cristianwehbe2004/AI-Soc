@@ -65,3 +65,16 @@ class IncidentQueryFilters(BaseModel):
     source_ip: str | None = None
     limit: int = Field(default=100, ge=1, le=1000)
     offset: int = Field(default=0, ge=0)
+
+
+PresetScenario = Literal["custom", "brute_force", "privilege_escalation", "data_exfiltration"]
+
+
+class IncidentCreate(BaseModel):
+    title: str = Field(min_length=3, max_length=255)
+    description: str = Field(min_length=5, max_length=2000)
+    severity: IncidentSeverity = Field(default="high")
+    primary_username: str | None = Field(default=None, max_length=128)
+    primary_source_ip: str | None = Field(default=None, max_length=64)
+    preset_scenario: PresetScenario = Field(default="custom")
+

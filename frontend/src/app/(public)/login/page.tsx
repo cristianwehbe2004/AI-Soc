@@ -3,13 +3,16 @@
 import { AuthLoading } from "@/components/auth/auth-loading";
 import { useAuth } from "@/components/providers/auth-provider";
 import { ApiError } from "@/lib/api/client";
-import { ArrowRight, Eye, EyeOff, LockKeyhole, ShieldCheck } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, LockKeyhole, ShieldCheck, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState, useTransition } from "react";
 
+type AuthMode = "signin" | "signup";
+
 export default function LoginPage() {
-  const { status, login } = useAuth();
+  const { status, login, register } = useAuth();
   const router = useRouter();
+  const [mode, setMode] = useState<AuthMode>("signin");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -24,23 +27,58 @@ export default function LoginPage() {
     event.preventDefault();
     setError(null);
     const form = new FormData(event.currentTarget);
-    const email = String(form.get("email") ?? "");
+    const email = String(form.get("email") ?? "").trim();
     const password = String(form.get("password") ?? "");
 
-    startTransition(async () => {
-      try {
-        await login(email, password);
-        router.replace("/dashboard");
-      } catch (caught) {
-        if (caught instanceof ApiError && caught.status === 429) {
-          setError("Too many attempts. Wait 15 minutes before trying again.");
-        } else if (caught instanceof ApiError && caught.status === 401) {
-          setError("The email or password is incorrect.");
-        } else {
-          setError("AI-SOC is unavailable. Check the backend and try again.");
-        }
+    if (mode === "signup") {
+      const fullName = String(form.get("full_name") ?? "").trim();
+      const confirmPassword = String(form.get("confirm_password") ?? "");
+
+      if (!fullName) {
+        setError("Full name is required.");
+        return;
       }
-    });
+      if (password.length < 12) {
+        setError("Password must be at least 12 characters long.");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
+
+      startTransition(async () => {
+        try {
+          await register(fullName, email, password);
+          router.replace("/dashboard");
+        } catch (caught) {
+          if (caught instanceof ApiError && caught.status === 429) {
+            setError("Too many registration attempts. Wait 15 minutes before trying again.");
+          } else if (caught instanceof ApiError && caught.status === 409) {
+            setError("An account with this email address already exists.");
+          } else if (caught instanceof ApiError && caught.body) {
+            setError(caught.message || "Could not create account.");
+          } else {
+            setError("AI-SOC is unavailable. Check the backend and try again.");
+          }
+        }
+      });
+    } else {
+      startTransition(async () => {
+        try {
+          await login(email, password);
+          router.replace("/dashboard");
+        } catch (caught) {
+          if (caught instanceof ApiError && caught.status === 429) {
+            setError("Too many attempts. Wait 15 minutes before trying again.");
+          } else if (caught instanceof ApiError && caught.status === 401) {
+            setError("The email or password is incorrect.");
+          } else {
+            setError("AI-SOC is unavailable. Check the backend and try again.");
+          }
+        }
+      });
+    }
   }
 
   return (
@@ -63,28 +101,139 @@ export default function LoginPage() {
       </section>
 
       <section className="login-panel">
-        <form className="login-form" onSubmit={handleSubmit}>
-          <div className="form-heading">
-            <p className="eyebrow">Analyst access</p>
-            <h2>Sign in to the console</h2>
-            <p>Use an account created by your AI-SOC administrator.</p>
-          </div>
-          <label className="field-label" htmlFor="email">Email address</label>
-          <input id="email" name="email" type="email" autoComplete="username" required placeholder="analyst@example.com" />
-          <label className="field-label" htmlFor="password">Password</label>
-          <div className="password-field">
-            <input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" required minLength={12} placeholder="Enter your password" />
-            <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"}>
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+        <div className="login-form">
+          <div className="mode-tabs" style={{ display: "flex", gap: "8px", marginBottom: "24px", background: "var(--surface-muted, #f1f5f9)", padding: "4px", borderRadius: "10px" }}>
+            <button
+              type="button"
+              onClick={() => { setMode("signin"); setError(null); }}
+              style={{
+                flex: 1,
+                padding: "8px 12px",
+                borderRadius: "8px",
+                border: "none",
+                fontWeight: 600,
+                fontSize: "14px",
+                cursor: "pointer",
+                background: mode === "signin" ? "#ffffff" : "transparent",
+                color: mode === "signin" ? "#0f172a" : "#64748b",
+                boxShadow: mode === "signin" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                transition: "all 0.2s"
+              }}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode("signup"); setError(null); }}
+              style={{
+                flex: 1,
+                padding: "8px 12px",
+                borderRadius: "8px",
+                border: "none",
+                fontWeight: 600,
+                fontSize: "14px",
+                cursor: "pointer",
+                background: mode === "signup" ? "#ffffff" : "transparent",
+                color: mode === "signup" ? "#0f172a" : "#64748b",
+                boxShadow: mode === "signup" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                transition: "all 0.2s"
+              }}
+            >
+              Sign Up
             </button>
           </div>
-          {error && <div className="form-error" role="alert">{error}</div>}
-          <button className="primary-button" type="submit" disabled={isPending}>
-            <span>{isPending ? "Verifying identity..." : "Enter operations"}</span>
-            <ArrowRight size={18} />
-          </button>
-          <p className="form-footnote">Authentication activity is security audited.</p>
-        </form>
+
+          <form onSubmit={handleSubmit}>
+            <div className="form-heading">
+              <p className="eyebrow">{mode === "signin" ? "Analyst access" : "New Account Setup"}</p>
+              <h2>{mode === "signin" ? "Sign in to the console" : "Create analyst account"}</h2>
+              <p>
+                {mode === "signin"
+                  ? "Use an account created by your AI-SOC administrator or sign up."
+                  : "Register a new analyst account to begin investigating."}
+              </p>
+            </div>
+
+            {mode === "signup" && (
+              <>
+                <label className="field-label" htmlFor="full_name">Full Name</label>
+                <input
+                  id="full_name"
+                  name="full_name"
+                  type="text"
+                  autoComplete="name"
+                  required
+                  placeholder="Jane Doe"
+                  style={{ marginBottom: "16px" }}
+                />
+              </>
+            )}
+
+            <label className="field-label" htmlFor="email">Email address</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="username"
+              required
+              placeholder="analyst@example.com"
+              style={{ marginBottom: "16px" }}
+            />
+
+            <label className="field-label" htmlFor="password">Password</label>
+            <div className="password-field" style={{ marginBottom: mode === "signup" ? "16px" : "0" }}>
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                required
+                minLength={12}
+                placeholder="Minimum 12 characters"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+
+            {mode === "signup" && (
+              <>
+                <label className="field-label" htmlFor="confirm_password">Confirm Password</label>
+                <div className="password-field">
+                  <input
+                    id="confirm_password"
+                    name="confirm_password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    required
+                    minLength={12}
+                    placeholder="Re-enter your password"
+                  />
+                </div>
+              </>
+            )}
+
+            {error && <div className="form-error" role="alert" style={{ marginTop: "16px" }}>{error}</div>}
+
+            <button className="primary-button" type="submit" disabled={isPending} style={{ marginTop: "24px" }}>
+              <span>
+                {isPending
+                  ? mode === "signin"
+                    ? "Verifying identity..."
+                    : "Creating account..."
+                  : mode === "signin"
+                  ? "Enter operations"
+                  : "Complete Sign Up"}
+              </span>
+              {mode === "signin" ? <ArrowRight size={18} /> : <UserPlus size={18} />}
+            </button>
+            <p className="form-footnote">Authentication activity is security audited.</p>
+          </form>
+        </div>
       </section>
     </main>
   );

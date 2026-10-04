@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import secrets
 import uuid
 from dataclasses import dataclass
@@ -11,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings
 from app.models.auth import AuthSession, User
 from app.repositories.auth_repository import AuthSessionRepository, UserRepository
-from app.schemas.auth import ChangePasswordRequest, TokenResponse, UserResponse
+from app.schemas.auth import ChangePasswordRequest, TokenResponse, UserRegister, UserResponse
 from app.security.passwords import hash_password, normalize_email, verify_password
 from app.security.rate_limit import LoginRateLimiter
 from app.security.tokens import (
@@ -30,6 +31,10 @@ class InvalidCredentialsError(ValueError):
 
 
 class LoginRateLimitedError(ValueError):
+    pass
+
+
+class UserAlreadyExistsError(ValueError):
     pass
 
 
@@ -75,7 +80,8 @@ class AuthService:
             raise LoginRateLimitedError("Too many authentication attempts")
 
         user = await self.users.get_by_email(normalized)
-        valid_password = verify_password(
+        valid_password = await asyncio.to_thread(
+            verify_password,
             password,
             user.password_hash if user is not None else DUMMY_PASSWORD_HASH,
         )
@@ -97,6 +103,56 @@ class AuthService:
         await self.audit.record(
             request=request,
             action="auth.login",
+            outcome="success",
+            actor_type="user",
+            actor_id=user.id,
+            actor_label=user.email,
+        )
+        await self.session.commit()
+        return result
+
+    async def register(self, *, payload: UserRegister, request: Request) -> AuthenticationResult:
+        normalized = normalize_email(payload.email)
+        source_ip = request.client.host if request.client else "unknown"
+
+        if await self.rate_limiter.is_register_limited(source_ip):
+            await self.audit.record(
+                request=request,
+                action="auth.register",
+                outcome="rate_limited",
+                actor_label=normalized,
+            )
+            await self.session.commit()
+            raise LoginRateLimitedError("Too many registration attempts")
+
+        await self.rate_limiter.record_register_attempt(source_ip)
+
+        existing = await self.users.get_by_email(normalized)
+        if existing is not None:
+            await self.audit.record(
+                request=request,
+                action="auth.register",
+                outcome="failure",
+                actor_label=normalized,
+            )
+            await self.session.commit()
+            raise UserAlreadyExistsError("An account with this email address already exists")
+
+        hashed = await asyncio.to_thread(hash_password, payload.password)
+        user = User(
+            email=normalized,
+            full_name=payload.full_name.strip(),
+            password_hash=hashed,
+            role_name="analyst",
+            is_active=True,
+        )
+        await self.users.create(user)
+        user.last_login_at = datetime.now(UTC)
+
+        result = await self._new_session(user=user, request=request)
+        await self.audit.record(
+            request=request,
+            action="auth.register",
             outcome="success",
             actor_type="user",
             actor_id=user.id,
@@ -204,7 +260,7 @@ class AuthService:
         payload: ChangePasswordRequest,
         request: Request,
     ) -> None:
-        if not verify_password(payload.current_password, user.password_hash):
+        if not await asyncio.to_thread(verify_password, payload.current_password, user.password_hash):
             await self.audit.record(
                 request=request,
                 action="auth.password_change",
@@ -215,7 +271,7 @@ class AuthService:
             )
             await self.session.commit()
             raise InvalidCredentialsError("Current password is incorrect")
-        user.password_hash = hash_password(payload.new_password)
+        user.password_hash = await asyncio.to_thread(hash_password, payload.new_password)
         user.credentials_changed_at = datetime.now(UTC)
         await self.sessions.revoke_user(user.id)
         await self.audit.record(
@@ -227,6 +283,7 @@ class AuthService:
             actor_label=user.email,
         )
         await self.session.commit()
+
 
     async def _new_session(self, *, user: User, request: Request) -> AuthenticationResult:
         session_id = uuid.uuid4()

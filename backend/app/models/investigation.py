@@ -50,9 +50,14 @@ class Investigation(Base):
     validation_errors: Mapped[list] = mapped_column(json_type, default=list)
     provider_response_ids: Mapped[list] = mapped_column(json_type, default=list)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_class: Mapped[str | None] = mapped_column(String(64), nullable=True)
     input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
     attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    next_retry_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     queued_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),

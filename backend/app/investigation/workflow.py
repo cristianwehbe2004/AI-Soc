@@ -29,6 +29,10 @@ provided in valid_evidence_refs.
 """.strip()
 
 
+class InvestigationCancelledError(RuntimeError):
+    pass
+
+
 class InvestigationWorkflow:
     def __init__(
         self,
@@ -37,12 +41,20 @@ class InvestigationWorkflow:
         investigation_repository: InvestigationRepository,
         provider: LLMProvider,
         session: AsyncSession,
+        queue: Any | None = None,
     ) -> None:
         self.context_builder = context_builder
         self.investigation_repository = investigation_repository
         self.provider = provider
         self.session = session
+        self.queue = queue
         self.graph = self._build_graph()
+
+    async def _check_cancelled(self, state: InvestigationState) -> None:
+        if self.queue is not None:
+            inv_id = uuid.UUID(state["investigation_id"])
+            if await self.queue.is_cancelled(inv_id):
+                raise InvestigationCancelledError("Investigation was cancelled by analyst")
 
     async def run(
         self,
@@ -115,6 +127,7 @@ class InvestigationWorkflow:
         self,
         state: InvestigationState,
     ) -> dict[str, Any]:
+        await self._check_cancelled(state)
         context = state["context"]
         response = await self.provider.generate_structured(
             instructions=(

@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  createIncident,
   createIncidentNote,
   getDashboardSummary,
   getEvent,
@@ -18,6 +19,7 @@ import {
   requestInvestigation,
   updateIncidentNote,
   type EventFilters,
+  type IncidentCreatePayload,
   type IncidentFilters,
   type MitreFilters,
 } from "./resources";
@@ -38,9 +40,20 @@ export function useIncidents(filters: IncidentFilters = {}) {
   return useQuery({ queryKey: ["incidents", filters], queryFn: () => listIncidents(filters) });
 }
 
+export function useCreateIncident() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: IncidentCreatePayload) => createIncident(payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["incidents"] });
+    },
+  });
+}
+
 export function useIncident(incidentId: string | undefined) {
   return useQuery({ queryKey: ["incidents", incidentId], queryFn: () => getIncident(incidentId!), enabled: Boolean(incidentId) });
 }
+
 
 export function useIncidentML(incidentId: string | undefined) {
   return useQuery({ queryKey: ["incidents", incidentId, "ml"], queryFn: () => getIncidentML(incidentId!), enabled: Boolean(incidentId) });

@@ -47,14 +47,15 @@ class InvestigationService:
         provider_name = self.settings.llm_provider.lower()
         if not self.settings.llm_enabled or provider_name == "disabled":
             raise InvestigationDisabledError("AI investigation is disabled")
-        if provider_name not in {"openai", "google", "google_ai_studio", "gemini"}:
+        if provider_name not in {"openai", "google", "google_ai_studio", "gemini", "mock"}:
             raise InvestigationDisabledError(
                 f"Unsupported LLM provider: {self.settings.llm_provider}"
             )
-        if not self.settings.llm_api_key:
+        if provider_name != "mock" and not self.settings.llm_api_key:
             raise InvestigationDisabledError(
                 "LLM_API_KEY is required for AI investigations"
             )
+
         incident = await self.incident_repository.get(incident_id)
         if incident is None:
             return None

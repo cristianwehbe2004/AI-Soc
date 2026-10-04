@@ -5,6 +5,7 @@ import {
   loginSession,
   logoutSession,
   refreshSession,
+  registerSession,
   subscribeToSession,
 } from "@/lib/api/client";
 import type { ApiUser } from "@/lib/api/types";
@@ -24,6 +25,7 @@ interface AuthContextValue {
   status: AuthStatus;
   user: ApiUser | null;
   login: (email: string, password: string) => Promise<void>;
+  register: (fullName: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -73,6 +75,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await loginSession(email, password);
   }
 
+  async function register(fullName: string, email: string, password: string) {
+    await registerSession(fullName, email, password);
+  }
+
   async function logout() {
     await logoutSession();
     channel.current?.postMessage("logout");
@@ -81,11 +87,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext value={{ status, user, login, logout }}>
+    <AuthContext value={{ status, user, login, register, logout }}>
       {children}
     </AuthContext>
   );
 }
+
 
 export function useAuth() {
   const context = use(AuthContext);

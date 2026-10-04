@@ -100,6 +100,22 @@ export function getEvent(eventId: string) {
   return apiRequest<EventResponse>(`/events/${encodeURIComponent(eventId)}`);
 }
 
+export interface IncidentCreatePayload {
+  title: string;
+  description: string;
+  severity: "low" | "medium" | "high" | "critical";
+  primary_username?: string;
+  primary_source_ip?: string;
+  preset_scenario?: "custom" | "brute_force" | "privilege_escalation" | "data_exfiltration";
+}
+
+export function createIncident(payload: IncidentCreatePayload) {
+  return apiRequest<IncidentDetailResponse>("/incidents", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function listIncidents(filters: IncidentFilters = {}) {
   return apiRequest<IncidentListResponse>(withQuery("/incidents", filters));
 }
@@ -107,6 +123,7 @@ export function listIncidents(filters: IncidentFilters = {}) {
 export function getIncident(incidentId: string) {
   return apiRequest<IncidentDetailResponse & { notes: IncidentNote[] }>(`/incidents/${incidentId}`);
 }
+
 
 export function getIncidentML(incidentId: string) {
   return apiRequest<IncidentML>(`/incidents/${incidentId}/ml`);

@@ -47,6 +47,13 @@ class UserCreate(BaseModel):
     role_name: RoleName
 
 
+class UserRegister(BaseModel):
+    email: EmailStr
+    full_name: str = Field(min_length=1, max_length=255)
+    password: str = Field(min_length=12, max_length=128)
+
+
+
 class UserUpdate(BaseModel):
     full_name: str | None = Field(default=None, min_length=1, max_length=255)
     role_name: RoleName | None = None
