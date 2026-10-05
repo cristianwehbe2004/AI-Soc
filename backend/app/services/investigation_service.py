@@ -87,6 +87,8 @@ class InvestigationService:
             )
             should_enqueue = True
         elif investigation.status == "failed":
+            investigation.provider = self.settings.llm_provider
+            investigation.model = self.settings.llm_model
             await self.investigation_repository.requeue(investigation)
             should_enqueue = True
 

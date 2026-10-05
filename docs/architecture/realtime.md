@@ -12,6 +12,7 @@ The configured prefix defaults to `ai_soc:realtime`.
 - `ai_soc:realtime:alerts`
 - `ai_soc:realtime:incidents`
 - `ai_soc:realtime:investigations`
+- `ai_soc:realtime:responses`
 
 ## Envelope
 
@@ -40,6 +41,7 @@ publication failure is logged and does not roll back persisted telemetry.
 - `investigation.running`: emitted after the worker claims a job.
 - `investigation.completed`: emitted after a worker result commits.
 - `investigation.failed`: emitted after a worker failure commits.
+- `response.proposed`, `response.approved`, `response.rejected`, `response.running`, `response.succeeded`, `response.failed`: emitted after response state changes. Payloads contain only incident ID, action type, and status; no secrets or raw evidence.
 
 ## Authentication
 
@@ -49,6 +51,9 @@ active authentication session family. The browser then connects to
 `/api/v1/realtime?ticket=...`. The ticket expires after 60 seconds and is
 consumed on connection, so the long-lived access token is never placed in the
 WebSocket URL.
+The handshake checks the browser Origin allowlist (`REALTIME_ALLOWED_ORIGINS`),
+and heartbeats revalidate the user and session family. Configure the production
+frontend origin explicitly; the local defaults are not production settings.
 
 ## Delivery
 

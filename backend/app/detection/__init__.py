@@ -10,6 +10,7 @@ from app.detection.rules import (
     PasswordSprayRule,
     SuspiciousPrivilegeChangeRule,
 )
+from app.detection.rules.cloud_finding import CloudFindingRule
 
 
 def build_rule_registry() -> RuleRegistry:
@@ -21,6 +22,7 @@ def build_rule_registry() -> RuleRegistry:
             LargeDownloadRule(),
             LoginAfterFailuresRule(),
             MLAnomalyRule(),
+            CloudFindingRule(),
         ]
     )
 

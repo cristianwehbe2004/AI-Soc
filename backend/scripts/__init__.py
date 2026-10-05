@@ -1,1 +1,1 @@
-"""Operational command modules."""
+"""Backend command-line utilities."""

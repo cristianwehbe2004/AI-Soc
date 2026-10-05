@@ -117,26 +117,23 @@ class EventService:
     async def _publish_realtime(self, event, alerts, incidents, *, created_ids: set | None = None) -> None:
         created_ids = created_ids if created_ids is not None else set(self.correlation_service.last_created_ids)
         try:
-            event_payload = EventResponse.model_validate(event).model_dump(mode="json")
             await self.realtime.publish(
                 "event.created",
                 entity_id=event.event_id,
-                payload=event_payload,
+                payload={"event_id": event.event_id},
             )
             for alert in alerts:
-                alert_payload = AlertResponse.model_validate(alert).model_dump(mode="json")
                 await self.realtime.publish(
                     "alert.created",
                     entity_id=str(alert.id),
-                    payload=alert_payload,
+                    payload={"incident_id": None},
                 )
             for incident in incidents:
-                incident_payload = IncidentListItem.model_validate(incident).model_dump(mode="json")
                 event_type = "incident.created" if incident.id in created_ids else "incident.updated"
                 await self.realtime.publish(
                     event_type,
                     entity_id=str(incident.id),
-                    payload=incident_payload,
+                    payload={"incident_id": str(incident.id), "severity": incident.severity},
                     version=int(incident.updated_at.timestamp() * 1_000_000),
                 )
         except Exception:

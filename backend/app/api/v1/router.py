@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints.api_keys import router as api_keys_router
+from app.api.v1.endpoints.aws_findings import router as aws_findings_router
 from app.api.v1.endpoints.audit import router as audit_router
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.dashboard import router as dashboard_router
@@ -11,6 +12,7 @@ from app.api.v1.endpoints.incident_context import router as incident_context_rou
 from app.api.v1.endpoints.investigations import router as investigations_router
 from app.api.v1.endpoints.mitre import router as mitre_router
 from app.api.v1.endpoints.realtime import router as realtime_router
+from app.api.v1.endpoints.response_actions import router as response_actions_router
 from app.api.v1.endpoints.users import router as users_router
 
 router = APIRouter()
@@ -23,6 +25,8 @@ router.include_router(incident_context_router, tags=["incident-context"])
 router.include_router(investigations_router, tags=["investigations"])
 router.include_router(mitre_router, tags=["mitre"])
 router.include_router(realtime_router, tags=["realtime"])
+router.include_router(response_actions_router)
 router.include_router(users_router, tags=["users"])
 router.include_router(api_keys_router, tags=["api-keys"])
+router.include_router(aws_findings_router)
 router.include_router(audit_router, tags=["audit"])

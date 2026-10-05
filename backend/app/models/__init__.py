@@ -8,6 +8,8 @@ from app.models.investigation import Investigation
 from app.models.model_registry import ModelRegistry
 from app.models.mitre import MitreTechnique, RuleTechniqueMapping
 from app.models.note import IncidentNote
+from app.models.response_action import ResponseAction
+from app.models.training_incident import TrainingIncident
 
 __all__ = [
     "Alert",
@@ -22,6 +24,8 @@ __all__ = [
     "ModelRegistry",
     "RuleTechniqueMapping",
     "Role",
+    "ResponseAction",
     "ServiceApiKey",
     "User",
+    "TrainingIncident",
 ]

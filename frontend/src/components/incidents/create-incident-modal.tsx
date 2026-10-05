@@ -118,7 +118,7 @@ export function CreateIncidentModal({ isOpen, onClose }: CreateIncidentModalProp
             padding: "20px 24px",
             borderBottom: "1px solid #e2e8f0",
             display: "flex",
-            justify: "space-between",
+            justifyContent: "space-between",
             alignItems: "center",
           }}
         >

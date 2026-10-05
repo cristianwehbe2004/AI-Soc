@@ -38,6 +38,8 @@ class IncidentCorrelationService:
         return incidents
 
     async def _correlate_alert(self, alert: Alert) -> Incident | None:
+        if alert.rule_id == "rule_006_cloud_finding":
+            return await self._correlate_cloud_finding(alert)
         if alert.rule_id not in {
             "rule_001_brute_force",
             "rule_002_password_spray",
@@ -111,6 +113,48 @@ class IncidentCorrelationService:
             "Correlated attack activity indicates a likely credential compromise "
             "sequence."
         )
+        await self.incident_repository.update(incident)
+        return incident
+
+    async def _correlate_cloud_finding(self, alert: Alert) -> Incident:
+        event = (await self.event_repository.get_by_ids([alert.event_id]))[alert.event_id]
+        metadata = event.event_metadata or {}
+        provider_id = str(metadata.get("provider_finding_id") or event.event_id)
+        account_id = str(metadata.get("account_id") or "local")
+        key = f"finding:{account_id}:{provider_id}"[:512]
+        await self.incident_repository.acquire_correlation_lock(key)
+        incident = await self.incident_repository.find_open_related_incident(
+            correlation_key=key,
+            username=None,
+            source_ip=None,
+            since=alert.first_seen - timedelta(days=90),
+            until=alert.last_seen + timedelta(seconds=1),
+        )
+        if incident is None:
+            incident = await self.incident_repository.create(Incident(
+                title=alert.title,
+                description=alert.description,
+                status="open",
+                severity=alert.severity,
+                risk_score={"low": 25, "medium": 50, "high": 75, "critical": 95}[alert.severity],
+                correlation_key=key,
+                primary_username=alert.username,
+                primary_source_ip=alert.source_ip,
+                first_seen=alert.first_seen,
+                last_seen=alert.last_seen,
+                timeline=[],
+            ))
+            self.last_created_ids.add(incident.id)
+        await self.incident_repository.add_alert_links(incident.id, [alert.id])
+        all_alerts = await self.incident_repository.get_alerts_for_incident(incident.id)
+        events_by_id = await self.event_repository.get_by_ids([item.event_id for item in all_alerts])
+        incident.timeline = build_incident_timeline(all_alerts, events_by_id)
+        incident.risk_score = max(
+            self.risk_scoring.score(all_alerts),
+            max({"low": 25, "medium": 50, "high": 75, "critical": 95}[item.severity] for item in all_alerts),
+        )
+        incident.severity = self.risk_scoring.severity_from_score(incident.risk_score)
+        incident.last_seen = max(item.last_seen for item in all_alerts)
         await self.incident_repository.update(incident)
         return incident
 

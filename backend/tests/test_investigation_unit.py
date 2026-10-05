@@ -11,6 +11,7 @@ from app.investigation.provider import (
     LLMProviderDisabledError,
     GoogleAIStudioProvider,
     OpenAIProvider,
+    _google_json_schema,
     build_llm_provider,
 )
 from app.investigation.queue import InvestigationQueue
@@ -19,6 +20,7 @@ from app.investigation.validation import (
     validate_investigation_result,
 )
 from app.schemas.investigation import (
+    EvidenceAnalysis,
     EvidenceFinding,
     InvestigationContext,
     InvestigationNarrative,
@@ -118,7 +120,7 @@ async def test_openai_provider_uses_structured_responses_api() -> None:
 @pytest.mark.anyio
 async def test_google_provider_uses_structured_chat_completions() -> None:
     settings = get_settings().model_copy(
-        update={"llm_provider": "google", "llm_api_key": "test-key", "llm_model": "gemini-2.5-flash"}
+        update={"llm_provider": "google", "llm_api_key": "test-key", "llm_model": "gemini-3.5-flash-lite"}
     )
     client = FakeGoogleClient()
     provider = GoogleAIStudioProvider(settings, client=client)
@@ -133,7 +135,26 @@ async def test_google_provider_uses_structured_chat_completions() -> None:
     assert result.input_tokens == 14
     assert result.output_tokens == 9
     assert client.chat.completions.kwargs["response_format"]["type"] == "json_schema"
-    assert client.chat.completions.kwargs["model"] == "gemini-2.5-flash"
+    assert client.chat.completions.kwargs["model"] == "gemini-3.5-flash-lite"
+    assert client.chat.completions.kwargs["reasoning_effort"] == "low"
+
+
+def test_google_schema_removes_unsupported_pydantic_constraints() -> None:
+    schema = _google_json_schema(EvidenceAnalysis.model_json_schema())
+
+    assert "$defs" not in schema
+    finding = schema["properties"]["findings"]["items"]
+    assert "$ref" not in finding
+    assert "minLength" not in finding["properties"]["title"]
+    assert "maxLength" not in finding["properties"]["title"]
+    assert "minimum" not in finding["properties"]["confidence"]
+    assert "maximum" not in finding["properties"]["confidence"]
+    assert finding["properties"]["severity"]["enum"] == [
+        "low",
+        "medium",
+        "high",
+        "critical",
+    ]
 
 
 def test_provider_factory_supports_google_ai_studio() -> None:

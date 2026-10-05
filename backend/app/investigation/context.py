@@ -9,6 +9,8 @@ from app.repositories.event_repository import EventRepository
 from app.repositories.incident_repository import IncidentRepository
 from app.repositories.mitre_repository import MitreRepository
 from app.schemas.investigation import InvestigationContext
+from app.ml.incident_classifier import classify_incident
+from app.repositories.model_registry_repository import ModelRegistryRepository
 
 CONTROL_CHARACTERS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
@@ -91,6 +93,12 @@ class InvestigationContextBuilder:
             techniques=technique_context,
             valid_evidence_refs=sorted(set(valid_refs)),
         )
+        try:
+            classification = await classify_incident(event_context, ModelRegistryRepository(self.incident_repository.session))
+        except (FileNotFoundError, ValueError):
+            classification = None
+        if classification is not None:
+            context.incident["detector"] = classification
         return self._enforce_size(context)
 
     def _alert_context(self, alert) -> dict[str, Any]:

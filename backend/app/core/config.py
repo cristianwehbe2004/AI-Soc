@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     auth_login_account_limit: int = Field(default=5, ge=1, alias="AUTH_LOGIN_ACCOUNT_LIMIT")
     auth_login_ip_limit: int = Field(default=20, ge=1, alias="AUTH_LOGIN_IP_LIMIT")
     llm_enabled: bool = Field(default=False, alias="LLM_ENABLED")
+    aws_response_enabled: bool = Field(default=False, alias="AWS_RESPONSE_ENABLED")
+    aws_allowed_account_ids: str = Field(default="", alias="AWS_ALLOWED_ACCOUNT_IDS")
+    aws_allowed_bucket_prefix: str = Field(default="", alias="AWS_ALLOWED_BUCKET_PREFIX")
     llm_provider: str = Field(default="disabled", alias="LLM_PROVIDER")
     llm_api_key: str | None = Field(default=None, alias="LLM_API_KEY")
     llm_base_url: str | None = Field(default=None, alias="LLM_BASE_URL")
@@ -56,6 +59,10 @@ class Settings(BaseSettings):
         default=3600, ge=60, le=86400, alias="AUTOMATIC_INVESTIGATION_COOLDOWN_SECONDS"
     )
     realtime_ws_path: str = Field(default="/api/v1/realtime", alias="REALTIME_WS_PATH")
+    realtime_allowed_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:3000", "http://localhost:8080"],
+        alias="REALTIME_ALLOWED_ORIGINS",
+    )
     realtime_redis_channel_prefix: str = Field(
         default="ai_soc:realtime", alias="REALTIME_REDIS_CHANNEL_PREFIX"
     )

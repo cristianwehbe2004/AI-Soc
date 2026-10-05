@@ -12,6 +12,67 @@ from app.core.config import Settings
 
 OutputModel = TypeVar("OutputModel", bound=BaseModel)
 
+GOOGLE_SUPPORTED_SCHEMA_KEYS = {
+    "type",
+    "enum",
+    "items",
+    "anyOf",
+    "oneOf",
+    "properties",
+    "additionalProperties",
+    "required",
+}
+
+
+def _google_json_schema(schema: dict) -> dict:
+    """Reduce Pydantic JSON Schema to the subset accepted by Gemini."""
+    schema = _inline_schema_refs(schema)
+    cleaned: dict = {}
+    for key, value in schema.items():
+        if key not in GOOGLE_SUPPORTED_SCHEMA_KEYS:
+            continue
+        if key in {"properties", "$defs"}:
+            cleaned[key] = {
+                name: _google_json_schema(child)
+                for name, child in value.items()
+            }
+        elif key == "items" and isinstance(value, dict):
+            cleaned[key] = _google_json_schema(value)
+        elif key in {"prefixItems", "anyOf", "oneOf"}:
+            cleaned[key] = [
+                _google_json_schema(child) if isinstance(child, dict) else child
+                for child in value
+            ]
+        elif key == "additionalProperties" and isinstance(value, dict):
+            cleaned[key] = _google_json_schema(value)
+        else:
+            cleaned[key] = value
+    return cleaned
+
+
+def _inline_schema_refs(schema: dict) -> dict:
+    """Inline local definitions for Google's OpenAI compatibility endpoint."""
+    definitions = schema.get("$defs", {})
+
+    def resolve(value):
+        if isinstance(value, list):
+            return [resolve(item) for item in value]
+        if not isinstance(value, dict):
+            return value
+        ref = value.get("$ref")
+        if isinstance(ref, str) and ref.startswith("#/$defs/"):
+            name = ref.removeprefix("#/$defs/")
+            if name not in definitions:
+                raise ValueError(f"Unknown local JSON Schema reference: {ref}")
+            return resolve(definitions[name])
+        return {
+            key: resolve(child)
+            for key, child in value.items()
+            if key != "$defs"
+        }
+
+    return resolve(schema)
+
 
 class LLMProviderError(RuntimeError):
     pass
@@ -157,11 +218,13 @@ class GoogleAIStudioProvider(LLMProvider):
                     "type": "json_schema",
                     "json_schema": {
                         "name": response_model.__name__.lower(),
-                        "strict": True,
-                        "schema": response_model.model_json_schema(),
+                        "schema": _google_json_schema(
+                            response_model.model_json_schema()
+                        ),
                     },
                 },
                 max_tokens=self.max_output_tokens,
+                reasoning_effort="low",
             )
         except Exception as exc:
             err_str = str(exc)
@@ -178,7 +241,7 @@ class GoogleAIStudioProvider(LLMProvider):
             if "404" in err_str or "NOT_FOUND" in err_str:
                 raise LLMProviderError(
                     f"Google AI Studio 404 Error: Model '{self.model}' or endpoint not found. "
-                    f"Ensure LLM_MODEL is a valid Gemini model (e.g. gemini-1.5-flash) and "
+                    f"Ensure LLM_MODEL is a valid Gemini model (e.g. gemini-3.5-flash-lite) and "
                     f"LLM_API_KEY is a valid Google AI Studio key starting with 'AIzaSy...'. Error details: {exc}"
                 ) from exc
             if any(code in err_str for code in ("500", "502", "503", "504")):
@@ -295,4 +358,3 @@ def build_llm_provider(settings: Settings) -> LLMProvider:
     if provider_name == "mock":
         return MockProvider(settings)
     raise LLMProviderError(f"Unsupported LLM provider: {settings.llm_provider}")
-

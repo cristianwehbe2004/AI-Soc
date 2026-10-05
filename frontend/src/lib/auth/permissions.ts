@@ -6,11 +6,13 @@ export type Permission =
   | "investigations:create"
   | "users:manage"
   | "api_keys:manage"
-  | "audit:read";
+  | "audit:read"
+  | "responses:propose"
+  | "responses:approve";
 
 const ROLE_PERMISSIONS: Record<RoleName, ReadonlySet<Permission>> = {
   viewer: new Set(["soc:read"]),
-  analyst: new Set(["soc:read", "incidents:write", "investigations:create"]),
+  analyst: new Set(["soc:read", "incidents:write", "investigations:create", "responses:propose"]),
   admin: new Set([
     "soc:read",
     "incidents:write",
@@ -18,6 +20,8 @@ const ROLE_PERMISSIONS: Record<RoleName, ReadonlySet<Permission>> = {
     "users:manage",
     "api_keys:manage",
     "audit:read",
+    "responses:propose",
+    "responses:approve",
   ]),
 };
 

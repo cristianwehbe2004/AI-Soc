@@ -13,6 +13,7 @@ CHANNELS = {
     "alert": "alerts",
     "incident": "incidents",
     "investigation": "investigations",
+    "response": "responses",
 }
 
 

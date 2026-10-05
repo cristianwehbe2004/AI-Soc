@@ -13,6 +13,7 @@ from app.db.session import SessionLocal
 from app.realtime.manager import RealtimeManager
 from app.realtime.tickets import RealtimeTicketStore
 from app.repositories.auth_repository import AuthSessionRepository, UserRepository
+from app.security.permissions import Permission, permissions_for_role
 
 router = APIRouter()
 settings = get_settings()
@@ -24,7 +25,7 @@ manager = RealtimeManager(
 )
 
 
-async def authenticate_ticket(ticket: str | None) -> uuid.UUID | None:
+async def authenticate_ticket(ticket: str | None) -> tuple[uuid.UUID, uuid.UUID] | None:
     if not ticket:
         return None
     ticket_identity = await RealtimeTicketStore(
@@ -37,22 +38,27 @@ async def authenticate_ticket(ticket: str | None) -> uuid.UUID | None:
     user_id, family_id = ticket_identity
     async with SessionLocal() as session:
         user = await UserRepository(session).get(user_id)
-        if user is None or not user.is_active or not await AuthSessionRepository(session).family_is_active(family_id):
+        if user is None or not user.is_active or Permission.SOC_READ not in permissions_for_role(user.role_name) or not await AuthSessionRepository(session).family_is_active(family_id):
             return None
-    return user_id
+    return user_id, family_id
 
 
 @router.websocket("/realtime")
 async def realtime_socket(websocket: WebSocket) -> None:
-    user_id = await authenticate_ticket(websocket.query_params.get("ticket"))
-    if user_id is None:
+    origin = websocket.headers.get("origin")
+    if origin is not None and origin not in settings.realtime_allowed_origins:
+        await websocket.close(code=4403, reason="Origin not allowed")
+        return
+    identity = await authenticate_ticket(websocket.query_params.get("ticket"))
+    if identity is None:
         await websocket.close(code=4401, reason="Invalid realtime ticket")
         return
+    user_id, family_id = identity
     connection = await manager.connect(websocket)
     if connection is None:
         return
     sender = asyncio.create_task(_send_messages(connection), name=f"realtime-send-{user_id}")
-    heartbeat = asyncio.create_task(_heartbeat(websocket), name=f"realtime-heartbeat-{user_id}")
+    heartbeat = asyncio.create_task(_heartbeat(websocket, user_id, family_id), name=f"realtime-heartbeat-{user_id}")
     try:
         await websocket.send_json({"type": "system.ready", "user_id": str(user_id)})
         while True:
@@ -62,7 +68,7 @@ async def realtime_socket(websocket: WebSocket) -> None:
                 return
             with suppress(json.JSONDecodeError):
                 message = json.loads(raw)
-                if message.get("type") == "pong":
+                if isinstance(message, dict) and message.get("type") == "pong":
                     continue
     except WebSocketDisconnect:
         pass
@@ -78,7 +84,13 @@ async def _send_messages(connection) -> None:
         await connection.websocket.send_text(await connection.queue.get())
 
 
-async def _heartbeat(websocket: WebSocket) -> None:
+async def _heartbeat(websocket: WebSocket, user_id: uuid.UUID, family_id: uuid.UUID) -> None:
     while True:
         await asyncio.sleep(settings.realtime_heartbeat_seconds)
+        async with SessionLocal() as session:
+            user = await UserRepository(session).get(user_id)
+            active = await AuthSessionRepository(session).family_is_active(family_id)
+            if user is None or not user.is_active or Permission.SOC_READ not in permissions_for_role(user.role_name) or not active:
+                await websocket.close(code=4401, reason="Session revoked")
+                return
         await websocket.send_json({"type": "system.heartbeat"})

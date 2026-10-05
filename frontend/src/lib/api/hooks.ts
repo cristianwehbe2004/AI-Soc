@@ -8,6 +8,7 @@ import {
   getEvent,
   getIncident,
   getIncidentML,
+  getIncidentClassification,
   getInvestigation,
   getMitreTechnique,
   getRuleTechniques,
@@ -16,12 +17,16 @@ import {
   listIncidents,
   listInvestigations,
   listMitreTechniques,
+  listResponseActions,
+  proposeResponseAction,
+  decideResponseAction,
   requestInvestigation,
   updateIncidentNote,
   type EventFilters,
   type IncidentCreatePayload,
   type IncidentFilters,
   type MitreFilters,
+  type ResponseActionPayload,
 } from "./resources";
 
 export function useDashboardSummary() {
@@ -57,6 +62,24 @@ export function useIncident(incidentId: string | undefined) {
 
 export function useIncidentML(incidentId: string | undefined) {
   return useQuery({ queryKey: ["incidents", incidentId, "ml"], queryFn: () => getIncidentML(incidentId!), enabled: Boolean(incidentId) });
+}
+
+export function useIncidentClassification(incidentId: string | undefined) {
+  return useQuery({ queryKey: ["incidents", incidentId, "classification"], queryFn: () => getIncidentClassification(incidentId!), enabled: Boolean(incidentId) });
+}
+
+export function useResponseActions(incidentId: string) {
+  return useQuery({ queryKey: ["incidents", incidentId, "response-actions"], queryFn: () => listResponseActions(incidentId) });
+}
+
+export function useProposeResponseAction(incidentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: (payload: ResponseActionPayload) => proposeResponseAction(incidentId, payload), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["incidents", incidentId, "response-actions"] }); } });
+}
+
+export function useDecideResponseAction(incidentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: ({ actionId, decision }: { actionId: string; decision: "approve" | "reject" }) => decideResponseAction(actionId, decision), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["incidents", incidentId, "response-actions"] }); } });
 }
 
 export function useIncidentNotes(incidentId: string | undefined) {

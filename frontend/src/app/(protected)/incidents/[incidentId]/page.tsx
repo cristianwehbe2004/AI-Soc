@@ -12,6 +12,7 @@ import { IncidentMLPanel } from "@/components/incidents/incident-ml-panel";
 import { IncidentMitrePanel } from "@/components/incidents/incident-mitre-panel";
 import { IncidentTimeline } from "@/components/incidents/incident-timeline";
 import { AnalystNotesPanel } from "@/components/incidents/analyst-notes-panel";
+import { IncidentResponsePanel } from "@/components/incidents/incident-response-panel";
 
 function queryError(error: unknown) {
   return error instanceof Error ? error : new Error("The API returned an unknown error.");
@@ -36,7 +37,7 @@ export default function IncidentDetailPage() {
       <section className="incident-summary panel"><div><span>Status</span><strong className={`status-badge status-${item.status}`}>{item.status}</strong></div><div><span>Identity</span><strong>{item.primary_username ?? "Unattributed"}</strong></div><div><span>Source IP</span><strong>{item.primary_source_ip ?? "—"}</strong></div><div><span>First seen</span><strong>{formatDate(item.first_seen)}</strong></div><div><span>Last seen</span><strong>{formatDate(item.last_seen)}</strong></div></section>
       <div className="incident-workspace">
         <main className="incident-main"><IncidentTimeline entries={item.timeline} /><IncidentAlertsPanel alerts={item.alerts} /><IncidentMitrePanel techniques={item.techniques} /></main>
-        <aside className="incident-rail"><IncidentMLPanel incidentId={item.id} /><IncidentInvestigationsPanel incidentId={item.id} /><AnalystNotesPanel incidentId={item.id} initialNotes={item.notes} /></aside>
+        <aside className="incident-rail"><IncidentMLPanel incidentId={item.id} /><IncidentInvestigationsPanel incidentId={item.id} /><IncidentResponsePanel incidentId={item.id} alertIds={item.alerts.map((alert) => alert.id)} /><AnalystNotesPanel incidentId={item.id} initialNotes={item.notes} /></aside>
       </div>
       <div className="incident-footnote"><Clock3 size={14} /> <span>Evidence timeline is materialized by correlation.</span><Fingerprint size={14} /> <span>{item.techniques.length} MITRE techniques mapped.</span><ShieldAlert size={14} /> <span>{item.alerts.length} alerts correlated.</span></div>
     </div>

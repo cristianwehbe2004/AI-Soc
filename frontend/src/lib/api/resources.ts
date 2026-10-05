@@ -42,6 +42,42 @@ export interface IncidentML {
   message: string | null;
 }
 
+export interface IncidentClassification {
+  status: string;
+  model_version: string | null;
+  probabilities?: Record<string, number>;
+  reason?: string | null;
+}
+
+export type ResponseActionType = "revoke_app_sessions" | "disable_aws_access_key" | "block_s3_public_access";
+export interface ResponseAction {
+  id: string;
+  incident_id: string;
+  action_type: ResponseActionType;
+  target: string;
+  account_id: string | null;
+  status: "proposed" | "approved" | "running" | "succeeded" | "failed" | "rejected";
+  rationale: string;
+  impact: string;
+  evidence_refs: string[];
+  proposed_by: string;
+  approved_by: string | null;
+  result: Record<string, unknown> | null;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ResponseActionPayload {
+  action_type: ResponseActionType;
+  target: string;
+  account_id: string | null;
+  rationale: string;
+  impact: string;
+  evidence_refs: string[];
+  idempotency_key: string;
+}
+
 export interface RealtimeTicket {
   ticket: string;
   expires_in: number;
@@ -127,6 +163,22 @@ export function getIncident(incidentId: string) {
 
 export function getIncidentML(incidentId: string) {
   return apiRequest<IncidentML>(`/incidents/${incidentId}/ml`);
+}
+
+export function getIncidentClassification(incidentId: string) {
+  return apiRequest<IncidentClassification>(`/incidents/${incidentId}/classification`);
+}
+
+export function listResponseActions(incidentId: string) {
+  return apiRequest<ResponseAction[]>(`/incidents/${incidentId}/response-actions`);
+}
+
+export function proposeResponseAction(incidentId: string, payload: ResponseActionPayload) {
+  return apiRequest<ResponseAction>(`/incidents/${incidentId}/response-actions`, { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function decideResponseAction(actionId: string, decision: "approve" | "reject") {
+  return apiRequest<ResponseAction>(`/response-actions/${actionId}/${decision}`, { method: "POST" });
 }
 
 export function listIncidentNotes(incidentId: string) {

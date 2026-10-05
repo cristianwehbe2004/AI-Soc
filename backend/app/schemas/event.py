@@ -15,6 +15,7 @@ EventCategory = Literal[
     "privilege_change",
     "process",
     "api",
+    "security_finding",
 ]
 
 EventType = Literal[
@@ -32,6 +33,11 @@ EventType = Literal[
     "account_created",
     "account_deleted",
     "password_changed",
+    "cloud_finding",
+    "access_key_used",
+    "s3_public_exposure",
+    "secret_exposure",
+    "data_exfiltration",
 ]
 
 EventSeverity = Literal["low", "medium", "high", "critical"]
@@ -142,4 +148,3 @@ class EventQueryFilters(BaseModel):
     severity: EventSeverity | None = None
     limit: int = Field(default=100, ge=1, le=1000)
     offset: int = Field(default=0, ge=0)
-

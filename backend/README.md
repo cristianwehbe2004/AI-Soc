@@ -26,7 +26,7 @@ Read the seeded catalog at `GET /api/v1/mitre/techniques`, inspect one technique
 
 ## AI Investigation
 
-AI investigation defaults to Google AI Studio's free-tier-compatible `gemini-2.5-flash` configuration in `.env.example`. Set `LLM_API_KEY` to a key created in Google AI Studio before starting the worker. `POST /api/v1/incidents/{incident_id}/investigations` creates an idempotent queued job. Optional automatic investigations are disabled by default and can be enabled with `AUTOMATIC_INVESTIGATIONS_ENABLED=true`; the severity threshold and cooldown remain configurable. The worker runs a validated LangGraph workflow and persists the result for `GET /api/v1/investigations/{investigation_id}`. See `docs/api/investigations.md` for the API contract and safety boundary.
+AI investigation defaults to Google AI Studio's cost-efficient `gemini-3.5-flash-lite` configuration in `.env.example`. Set `LLM_API_KEY` to a key created in Google AI Studio before starting the worker. `POST /api/v1/incidents/{incident_id}/investigations` creates an idempotent queued job. Optional automatic investigations are disabled by default and can be enabled with `AUTOMATIC_INVESTIGATIONS_ENABLED=true`; the severity threshold and cooldown remain configurable. The worker runs a validated LangGraph workflow and persists the result for `GET /api/v1/investigations/{investigation_id}`. See `docs/api/investigations.md` for the API contract and safety boundary.
 
 ## ML Workflow
 
@@ -41,3 +41,9 @@ python scripts/evaluate_isolation_forest.py
 The trained artifact is stored under `ML_ARTIFACT_DIR`, and its metadata and active status are stored in `model_registry`. Once a model is active, event ingestion scores each event inline and persists `rule_006_ml_anomaly` alerts when the configured threshold is crossed.
 
 From the repository root, the same workflow is available as `make ml-dataset`, `make ml-train`, and `make ml-evaluate`.
+
+## Expanded incident detection and controlled response
+
+The new incident-type classifier trains locally from reviewed JSONL cases and stays in shadow mode by default. Existing Security Hub-format findings can be pushed through an `events:write` key without enabling any AWS service. Analysts may propose incident-linked containment; a different admin must approve, and AWS execution remains disabled unless explicitly allowlisted. See `docs/ml/incident-training.md` for data, gates, cost guardrails, and security fundamentals, and `docs/api/response-actions.md` for the API.
+
+For training pipeline tests, `python scripts/seed_training_incidents.py` fills a separate `training_incidents` table with public unreviewed references and synthetic lab examples. `python scripts/train_incident_classifier.py --from-db --lab-shadow` trains a shadow model from lab examples. Neither command creates live SOC incidents or activates a classifier.

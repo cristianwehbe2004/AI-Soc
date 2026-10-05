@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.db.session import get_db_session
 from app.ml.inference import MLInferenceService
+from app.ml.incident_classifier import classify_incident
 from app.models.auth import User
 from app.models.note import IncidentNote
 from app.repositories.event_repository import EventRepository
@@ -26,6 +27,29 @@ router = APIRouter(
 )
 ReadUser = Annotated[User, Depends(require_permission(Permission.SOC_READ))]
 AnalystUser = Annotated[User, Depends(require_permission(Permission.INCIDENTS_WRITE))]
+
+
+@router.get("/{incident_id}/classification")
+async def get_incident_classification(
+    incident_id: uuid.UUID,
+    actor: ReadUser,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    incident_repository = IncidentRepository(session)
+    if await incident_repository.get(incident_id) is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    alerts = await incident_repository.get_alerts_for_incident(incident_id)
+    events = await EventRepository(session).get_by_ids([alert.event_id for alert in alerts])
+    summaries = [
+        {"event_type": event.event_type, "severity": event.severity, "username": event.username,
+         "source_ip": event.source_ip, "bytes_sent": event.bytes_sent, "bytes_received": event.bytes_received}
+        for event in events.values()
+    ]
+    try:
+        result = await classify_incident(summaries, ModelRegistryRepository(session))
+    except (FileNotFoundError, ValueError) as exc:
+        return {"status": "unavailable", "reason": str(exc)}
+    return {"status": "available", **result} if result else {"status": "unavailable", "reason": "No active incident classifier"}
 
 
 @router.get("/{incident_id}/notes", response_model=list[IncidentNoteResponse])

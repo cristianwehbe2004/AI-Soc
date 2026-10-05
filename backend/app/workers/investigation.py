@@ -4,6 +4,7 @@ import asyncio
 import logging
 import uuid
 import warnings
+from sqlalchemy import select
 
 warnings.filterwarnings(
     "ignore",
@@ -25,6 +26,8 @@ from app.repositories.investigation_repository import InvestigationRepository
 from app.repositories.mitre_repository import MitreRepository
 from app.realtime.events import RealtimePublisher
 from app.schemas.investigation import InvestigationResponse
+from app.services.response_actions import QUEUE_KEY as RESPONSE_QUEUE_KEY, execute_action
+from app.models.response_action import ResponseAction
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +105,7 @@ async def _publish_status(investigation, event_type: str, settings) -> None:
         ).publish(
             event_type,
             entity_id=str(investigation.id),
-            payload=InvestigationResponse.model_validate(investigation).model_dump(mode="json"),
+            payload={"incident_id": str(investigation.incident_id), "status": investigation.status},
             version=int(investigation.updated_at.timestamp() * 1_000_000),
         )
     except Exception:
@@ -117,7 +120,19 @@ async def run_worker() -> None:
         queue_key=settings.investigation_queue_key,
     )
     logger.info("Investigation worker started")
+    last_recovery = 0.0
     while True:
+        now = asyncio.get_running_loop().time()
+        if now - last_recovery >= 60:
+            async with SessionLocal() as session:
+                pending = (await session.scalars(select(ResponseAction.id).where(ResponseAction.status == "approved").limit(100))).all()
+            for action_id in pending:
+                await execute_action(action_id, SessionLocal, settings)
+            last_recovery = now
+        response_item = await redis_client.lpop(RESPONSE_QUEUE_KEY)
+        if response_item is not None:
+            await execute_action(uuid.UUID(response_item.decode() if isinstance(response_item, bytes) else response_item), SessionLocal, settings)
+            continue
         investigation_id = await queue.dequeue(
             timeout=settings.investigation_worker_block_seconds
         )

@@ -113,6 +113,10 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         void queryClient.invalidateQueries({ queryKey: ["investigations", message.entity_id] });
         if (incidentId) void queryClient.invalidateQueries({ queryKey: ["incidents", incidentId, "investigations"] });
       }
+      if (entity === "response") {
+        const incidentId = typeof message.payload?.incident_id === "string" ? message.payload.incident_id : undefined;
+        if (incidentId) void queryClient.invalidateQueries({ queryKey: ["incidents", incidentId, "response-actions"] });
+      }
     }
 
     void connect();

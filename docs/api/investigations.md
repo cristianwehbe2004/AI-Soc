@@ -6,7 +6,7 @@ LangGraph workflow.
 
 Configure `LLM_ENABLED=true`, `LLM_PROVIDER=google`, `LLM_API_KEY`,
 `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/`, and
-`LLM_MODEL=gemini-2.5-flash` before submitting jobs. The Google AI Studio key
+`LLM_MODEL=gemini-3.5-flash-lite` before submitting jobs. The Google AI Studio key
 must be stored in the ignored local `backend/.env` file, never committed.
 
 Automatic investigations are disabled by default. To enable them, set
