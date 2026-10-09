@@ -19,6 +19,7 @@ from app.schemas.incident import (
 )
 from app.schemas.mitre import MitreTechniqueResponse
 from app.schemas.note import IncidentNoteResponse
+from app.services.incident_evidence import redact_secrets
 
 
 class IncidentService:
@@ -53,6 +54,8 @@ class IncidentService:
 
     async def create_manual_incident(self, payload: IncidentCreate) -> IncidentDetail:
         now = datetime.now(UTC)
+        title, _ = redact_secrets(payload.title)
+        description, _ = redact_secrets(payload.description)
         severity_scores = {"low": 30, "medium": 55, "high": 80, "critical": 95}
         risk_score = severity_scores.get(payload.severity, 75)
         correlation_key = f"manual:{payload.primary_username or 'unknown'}:{payload.primary_source_ip or 'unknown'}:{uuid.uuid4().hex[:6]}"
@@ -61,8 +64,8 @@ class IncidentService:
             {
                 "timestamp": now.isoformat(),
                 "type": "incident_created",
-                "title": f"Incident created: {payload.title}",
-                "description": payload.description,
+                "title": f"Incident created: {title}",
+                "description": description,
                 "username": payload.primary_username,
                 "source_ip": payload.primary_source_ip,
                 "metadata": {"source": "analyst_console", "preset": payload.preset_scenario},
@@ -71,14 +74,14 @@ class IncidentService:
 
         incident = Incident(
             id=uuid.uuid4(),
-            title=payload.title,
-            description=payload.description,
+            title=title,
+            description=description,
             status="open",
             severity=payload.severity,
             risk_score=risk_score,
             correlation_key=correlation_key,
-            primary_username=payload.primary_username or "analyst",
-            primary_source_ip=payload.primary_source_ip or "192.168.1.10",
+            primary_username=payload.primary_username,
+            primary_source_ip=payload.primary_source_ip,
             first_seen=now,
             last_seen=now,
             timeline=timeline,
@@ -89,4 +92,3 @@ class IncidentService:
         if detail is None:
             raise RuntimeError("Failed to retrieve created incident")
         return detail
-

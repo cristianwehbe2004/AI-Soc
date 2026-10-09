@@ -71,6 +71,7 @@ class InvestigationContext(BaseModel):
     incident: dict[str, Any]
     alerts: list[dict[str, Any]]
     events: list[dict[str, Any]]
+    incident_evidence: list[dict[str, Any]] = Field(default_factory=list)
     timeline: list[dict[str, Any]]
     techniques: list[dict[str, Any]]
     valid_evidence_refs: list[str]

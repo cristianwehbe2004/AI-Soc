@@ -30,6 +30,30 @@ export interface IncidentNote {
   updated_at: string;
 }
 
+export interface NetworkObservation {
+  source_zone: "internet" | "dmz" | "internal" | "restricted" | "unknown";
+  destination_zone: "internet" | "dmz" | "internal" | "restricted" | "unknown";
+  destination_port: number;
+  protocol: "tcp" | "udp";
+  disposition: "allowed" | "blocked" | "unknown";
+}
+
+export interface IncidentEvidencePayload {
+  kind: "analyst_observation" | "network_observation" | "asset_configuration" | "identity_activity" | "vulnerability_report";
+  source: string;
+  summary: string;
+  observed_at?: string | null;
+  network?: NetworkObservation | null;
+}
+
+export interface IncidentEvidence extends IncidentEvidencePayload {
+  id: string;
+  incident_id: string;
+  submitted_by: string;
+  sensitive_redacted: boolean;
+  created_at: string;
+}
+
 export interface IncidentML {
   status: "available" | "unavailable";
   model_version: string | null;
@@ -163,6 +187,14 @@ export function getIncident(incidentId: string) {
 
 export function getIncidentML(incidentId: string) {
   return apiRequest<IncidentML>(`/incidents/${incidentId}/ml`);
+}
+
+export function listIncidentEvidence(incidentId: string) {
+  return apiRequest<IncidentEvidence[]>(`/incidents/${incidentId}/evidence`);
+}
+
+export function createIncidentEvidence(incidentId: string, payload: IncidentEvidencePayload) {
+  return apiRequest<IncidentEvidence>(`/incidents/${incidentId}/evidence`, { method: "POST", body: JSON.stringify(payload) });
 }
 
 export function getIncidentClassification(incidentId: string) {

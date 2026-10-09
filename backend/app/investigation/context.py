@@ -4,6 +4,7 @@ import json
 import re
 import uuid
 from typing import Any
+from sqlalchemy import select
 
 from app.repositories.event_repository import EventRepository
 from app.repositories.incident_repository import IncidentRepository
@@ -11,6 +12,7 @@ from app.repositories.mitre_repository import MitreRepository
 from app.schemas.investigation import InvestigationContext
 from app.ml.incident_classifier import classify_incident
 from app.repositories.model_registry_repository import ModelRegistryRepository
+from app.models.incident_evidence import IncidentEvidence
 
 CONTROL_CHARACTERS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
@@ -49,6 +51,10 @@ class InvestigationContextBuilder:
         techniques = await self.mitre_repository.get_for_rules(
             [alert.rule_id for alert in alerts]
         )
+        attached_evidence = (await self.incident_repository.session.scalars(
+            select(IncidentEvidence).where(IncidentEvidence.incident_id == incident_id)
+            .order_by(IncidentEvidence.created_at.desc()).limit(50)
+        )).all()
 
         alert_context = [self._alert_context(alert) for alert in alerts]
         event_context = [
@@ -73,6 +79,14 @@ class InvestigationContextBuilder:
         valid_refs.extend(
             f"mitre:{technique['technique_id']}" for technique in technique_context
         )
+        evidence_context = [
+            {"ref": f"evidence:{item.id}", "kind": item.kind, "source": self._clean_string(item.source, 160),
+             "summary": self._clean_string(item.summary, 2000), "network": item.network,
+             "observed_at": item.observed_at.isoformat() if item.observed_at else None,
+             "provenance": "analyst_supplied_unverified"}
+            for item in attached_evidence
+        ]
+        valid_refs.extend(item["ref"] for item in evidence_context)
 
         context = InvestigationContext(
             incident={
@@ -86,9 +100,11 @@ class InvestigationContextBuilder:
                 "primary_source_ip": self._clean_optional(incident.primary_source_ip),
                 "first_seen": incident.first_seen.isoformat(),
                 "last_seen": incident.last_seen.isoformat(),
+                "evidence_quality": "corroborated_telemetry" if alerts else ("analyst_supplied" if attached_evidence else "report_only"),
             },
             alerts=alert_context,
             events=event_context,
+            incident_evidence=evidence_context,
             timeline=self._sanitize(incident.timeline, depth=0),
             techniques=technique_context,
             valid_evidence_refs=sorted(set(valid_refs)),
@@ -162,6 +178,7 @@ class InvestigationContextBuilder:
         serialized["timeline"] = serialized["timeline"][-50:]
         serialized["alerts"] = serialized["alerts"][-50:]
         serialized["events"] = serialized["events"][-50:]
+        serialized["incident_evidence"] = serialized["incident_evidence"][:30]
         serialized["incident"]["context_truncated"] = True
         for alert in serialized["alerts"]:
             alert["description"] = alert["description"][:500]
@@ -178,6 +195,8 @@ class InvestigationContextBuilder:
                 serialized["events"].pop(0)
             elif len(serialized["alerts"]) > 1:
                 serialized["alerts"].pop(0)
+            elif len(serialized["incident_evidence"]) > 1:
+                serialized["incident_evidence"].pop()
             else:
                 raise InvestigationContextTooLargeError(
                     "Safe incident context exceeds LLM_CONTEXT_MAX_CHARS"
@@ -187,6 +206,8 @@ class InvestigationContextBuilder:
             {
                 *[item["ref"] for item in serialized["alerts"]],
                 *[item["ref"] for item in serialized["events"]],
+                *[item["ref"] for item in serialized["incident_evidence"]],
+                *([f"incident:{serialized['incident']['id']}"] if serialized["incident"].get("id") else []),
                 *[
                     f"mitre:{item['technique_id']}"
                     for item in serialized["techniques"]

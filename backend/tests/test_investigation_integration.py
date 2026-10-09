@@ -272,9 +272,8 @@ async def test_stored_incident_is_investigated_end_to_end() -> None:
     detail = detail_response.json()
     assert detail["status"] == "completed"
     assert detail["result"]["risk_analysis"]["score"] == 90
-    assert detail["result"]["evidence_gaps"] == [
-        "Endpoint telemetry is not available."
-    ]
+    assert "Endpoint telemetry is not available." in detail["result"]["evidence_gaps"]
+    assert any("No structured network observation" in gap for gap in detail["result"]["evidence_gaps"])
     assert detail["result"]["recommendations"][0]["priority"] == "urgent"
     assert {item["technique_id"] for item in detail["result"]["mitre_context"]} == {
         "T1078",
@@ -288,6 +287,49 @@ async def test_stored_incident_is_investigated_end_to_end() -> None:
     assert provider.calls == 4
     assert list_response.status_code == 200
     assert len(list_response.json()["items"]) == 1
+
+
+@pytest.mark.anyio
+async def test_manual_incident_with_network_evidence_gets_cited_weakness_and_solution() -> None:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        created = await client.post("/api/v1/incidents", headers=AUTH_HEADERS["analyst"], json={
+            "title": "Unexpected remote access", "description": "An operator reported unusual access to a restricted host.",
+            "severity": "high", "preset_scenario": "custom",
+        })
+        assert created.status_code == 201, created.text
+        incident = created.json()
+        assert incident["primary_username"] is None and incident["primary_source_ip"] is None
+        incident_id = incident["id"]
+        viewer = await client.post(f"/api/v1/incidents/{incident_id}/evidence", headers=AUTH_HEADERS["viewer"], json={
+            "kind": "analyst_observation", "source": "operator", "summary": "A possible access issue was reported.",
+        })
+        assert viewer.status_code == 403
+        attached = await client.post(f"/api/v1/incidents/{incident_id}/evidence", headers=AUTH_HEADERS["analyst"], json={
+            "kind": "network_observation", "source": "firewall export",
+            "summary": "Allowed inbound session; password=hunter2",
+            "network": {"source_zone": "internet", "destination_zone": "restricted", "destination_port": 3389,
+                        "protocol": "tcp", "disposition": "allowed"},
+        })
+        assert attached.status_code == 201, attached.text
+        evidence = attached.json()
+        assert evidence["sensitive_redacted"] is True
+        assert "hunter2" not in evidence["summary"]
+        listed = await client.get(f"/api/v1/incidents/{incident_id}/evidence", headers=AUTH_HEADERS["viewer"])
+        assert listed.status_code == 200 and len(listed.json()) == 1
+
+        queued = await client.post(f"/api/v1/incidents/{incident_id}/investigations", headers=AUTH_HEADERS["analyst"])
+        assert queued.status_code == 202, queued.text
+        investigation_id = uuid.UUID(queued.json()["id"])
+        assert await process_investigation(investigation_id, provider=MockInvestigationProvider())
+        result = (await client.get(f"/api/v1/investigations/{investigation_id}", headers=AUTH_HEADERS["viewer"])).json()
+        assert result["status"] == "completed"
+        assert "hunter2" not in str(result["context_snapshot"])
+        reference = f"evidence:{evidence['id']}"
+        assert any(reference in finding["evidence_refs"] and "internet access" in finding["title"] for finding in result["result"]["findings"])
+        assert any(reference in recommendation["evidence_refs"] and "restrict" in recommendation["title"] for recommendation in result["result"]["recommendations"])
+        assert result["result"]["confidence"] <= 0.65
+        assert all(finding["confidence"] <= 0.65 for finding in result["result"]["findings"])
 
 
 @pytest.mark.anyio
@@ -320,6 +362,44 @@ async def test_investigation_request_is_idempotent_for_unchanged_incident() -> N
     assert second.status_code == 202
     assert first.json()["id"] == second.json()["id"]
     assert len(queue.items) == 1
+
+
+@pytest.mark.anyio
+async def test_new_evidence_creates_fresh_investigation() -> None:
+    incident_id = await create_stored_incident()
+    queue = FakeQueue()
+    app.dependency_overrides[get_investigation_service] = (
+        investigation_service_override(queue)
+    )
+    transport = ASGITransport(app=app)
+
+    try:
+        async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+            first = await client.post(
+                f"/api/v1/incidents/{incident_id}/investigations",
+                headers=AUTH_HEADERS["analyst"],
+            )
+            evidence = await client.post(
+                f"/api/v1/incidents/{incident_id}/evidence",
+                headers=AUTH_HEADERS["analyst"],
+                json={
+                    "kind": "analyst_observation",
+                    "source": "analyst review",
+                    "summary": "Additional context received after the first investigation.",
+                },
+            )
+            second = await client.post(
+                f"/api/v1/incidents/{incident_id}/investigations",
+                headers=AUTH_HEADERS["analyst"],
+            )
+    finally:
+        app.dependency_overrides.pop(get_investigation_service, None)
+
+    assert first.status_code == 202
+    assert evidence.status_code == 201
+    assert second.status_code == 202
+    assert first.json()["id"] != second.json()["id"]
+    assert len(queue.items) == 2
 
 
 @pytest.mark.anyio

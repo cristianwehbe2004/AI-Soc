@@ -11,6 +11,7 @@ from app.core.config import Settings
 from app.db.redis import redis_client
 from app.models.auth import AuditLog
 from app.models.response_action import ResponseAction
+from app.models.incident_evidence import IncidentEvidence
 from app.realtime.events import RealtimePublisher
 from app.repositories.auth_repository import AuthSessionRepository, UserRepository
 from app.repositories.incident_repository import IncidentRepository
@@ -52,6 +53,8 @@ class ResponseActionService:
         valid = {f"incident:{incident_id}"}
         valid.update(f"alert:{alert.id}" for alert in alerts)
         valid.update(f"event:{event.event_id}" for event in events.values())
+        evidence = (await self.session.scalars(select(IncidentEvidence.id).where(IncidentEvidence.incident_id == incident_id))).all()
+        valid.update(f"evidence:{item}" for item in evidence)
         if set(payload.evidence_refs) - valid:
             raise ResponseActionError("Action cites evidence outside this incident")
         if payload.action_type == "revoke_app_sessions" and await UserRepository(self.session).get(uuid.UUID(payload.target)) is None:

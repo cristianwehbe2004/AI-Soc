@@ -20,8 +20,36 @@ existing investigation idempotency and evidence-validation boundaries.
 `POST /api/v1/incidents/{incident_id}/investigations`
 
 Returns `202 Accepted` with a persisted `queued` job. Repeating the request for
-an unchanged incident and prompt version returns the same job instead of creating
-duplicate provider calls.
+an unchanged incident, attached evidence, and prompt version returns the same job
+instead of creating duplicate provider calls.
+
+## Attach incident evidence
+
+`POST /api/v1/incidents/{incident_id}/evidence` requires incident-write permission.
+`GET /api/v1/incidents/{incident_id}/evidence` requires SOC-read permission.
+For example, an analyst can submit:
+
+```json
+{
+  "kind": "network_observation",
+  "source": "firewall log review",
+  "summary": "Observed an allowed inbound connection to the restricted host",
+  "network": {
+    "source_zone": "internet",
+    "destination_zone": "restricted",
+    "destination_port": 3389,
+    "protocol": "tcp",
+    "disposition": "allowed"
+  }
+}
+```
+
+Other evidence kinds are `analyst_observation`, `asset_configuration`,
+`identity_activity`, and `vulnerability_report`; they take `source`, `summary`,
+and optional `observed_at`. Never submit secrets or raw private keys. Common
+secret patterns are redacted before storage, but redaction is not a guarantee.
+Adding evidence changes the investigation context hash; submit a new
+investigation request to analyze it. Prior results remain available.
 
 ## Read investigation status and result
 
@@ -35,9 +63,28 @@ narrative, recommendations, provider response IDs, and token usage.
 
 `GET /api/v1/incidents/{incident_id}/investigations`
 
-Results are ordered newest first. Updating an incident changes its context hash,
-allowing a new investigation while preserving earlier results.
+Results are ordered newest first. Updating an incident or attaching evidence
+changes its context hash, allowing a new investigation while preserving earlier
+results.
 
 Telemetry is treated as untrusted input. The workflow excludes raw payloads,
 size-bounds context, requires structured provider output, and rejects citations
-that do not reference loaded alerts, events, or MITRE techniques.
+that do not reference loaded incident, alert, event, attached-evidence, or MITRE
+references. Structured network observations can produce a cited *reported*
+exposure or segmentation-gap finding and a verification/change-control plan.
+Blocked paths do not become exposure findings. Without relevant observations,
+the result states that network exposure cannot be assessed. No active scan,
+reachability test, firewall change, or autonomous remediation is performed.
+Analyst-supplied evidence remains unverified even when a finding cites it; an
+authorized operator must corroborate it and approve any production change.
+Finding and narrative confidence is capped at 65% for analyst-supplied evidence
+without corroborating telemetry, and 50% for incident reports alone. These are
+guardrails, not calibrated probabilities.
+
+This improves evidence handling, not a measured claim of real-world accuracy.
+Evaluate against representative, labeled incidents from your own environment
+before trusting detection or remediation rates. The design follows
+[NIST SP 800-115](https://csrc.nist.gov/pubs/sp/800/115/final) for authorized
+testing and mitigation, [CISA network hardening guidance](https://www.cisa.gov/resources-tools/resources/enhanced-visibility-and-hardening-guidance-communications-infrastructure)
+for segmentation and access controls, and [OWASP guidance on prompt injection](https://genai.owasp.org/llmrisk/llm01-prompt-injection/)
+and [sensitive-information disclosure](https://genai.owasp.org/llmrisk/llm022025-sensitive-information-disclosure/).

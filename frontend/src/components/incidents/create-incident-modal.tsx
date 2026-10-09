@@ -14,7 +14,7 @@ interface CreateIncidentModalProps {
 export function CreateIncidentModal({ isOpen, onClose }: CreateIncidentModalProps) {
   const router = useRouter();
   const createMutation = useCreateIncident();
-  const [tab, setTab] = useState<"preset" | "custom">("preset");
+  const [tab, setTab] = useState<"preset" | "custom">("custom");
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -146,7 +146,7 @@ export function CreateIncidentModal({ isOpen, onClose }: CreateIncidentModalProp
               borderRadius: "10px",
             }}
           >
-            <button
+            {process.env.NEXT_PUBLIC_ENABLE_DEMO_PRESETS === "true" ? <button
               type="button"
               onClick={() => { setTab("preset"); setError(null); }}
               style={{
@@ -167,8 +167,8 @@ export function CreateIncidentModal({ isOpen, onClose }: CreateIncidentModalProp
                 gap: "6px",
               }}
             >
-              <Sparkles size={15} /> Attack Scenario Preset
-            </button>
+              <Sparkles size={15} /> Demo Scenario Preset
+            </button> : null}
             <button
               type="button"
               onClick={() => { setTab("custom"); setError(null); }}

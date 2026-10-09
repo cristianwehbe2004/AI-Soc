@@ -3,11 +3,13 @@ from __future__ import annotations
 import hashlib
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.investigation.queue import InvestigationQueue
 from app.models.investigation import Investigation
+from app.models.incident_evidence import IncidentEvidence
 from app.repositories.incident_repository import IncidentRepository
 from app.repositories.investigation_repository import InvestigationRepository
 from app.schemas.investigation import (
@@ -60,7 +62,7 @@ class InvestigationService:
         if incident is None:
             return None
 
-        context_hash = self._context_hash(incident)
+        context_hash = await self._context_hash(incident)
         await self.investigation_repository.acquire_context_lock(
             f"investigation:{incident.id}:{context_hash}:"
             f"{self.settings.llm_prompt_version}"
@@ -132,9 +134,17 @@ class InvestigationService:
             ]
         )
 
-    def _context_hash(self, incident) -> str:
+    async def _context_hash(self, incident) -> str:
+        evidence_ids = (
+            await self.session.scalars(
+                select(IncidentEvidence.id)
+                .where(IncidentEvidence.incident_id == incident.id)
+                .order_by(IncidentEvidence.id)
+            )
+        ).all()
         value = (
             f"{incident.id}:{incident.updated_at.isoformat()}:"
-            f"{incident.risk_score}:{incident.last_seen.isoformat()}"
+            f"{incident.risk_score}:{incident.last_seen.isoformat()}:"
+            f"{','.join(str(evidence_id) for evidence_id in evidence_ids)}"
         )
         return hashlib.sha256(value.encode("utf-8")).hexdigest()

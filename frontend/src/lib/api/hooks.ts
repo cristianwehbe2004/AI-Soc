@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createIncident,
   createIncidentNote,
+  createIncidentEvidence,
   getDashboardSummary,
   getEvent,
   getIncident,
@@ -14,6 +15,7 @@ import {
   getRuleTechniques,
   listEvents,
   listIncidentNotes,
+  listIncidentEvidence,
   listIncidents,
   listInvestigations,
   listMitreTechniques,
@@ -24,6 +26,7 @@ import {
   updateIncidentNote,
   type EventFilters,
   type IncidentCreatePayload,
+  type IncidentEvidencePayload,
   type IncidentFilters,
   type MitreFilters,
   type ResponseActionPayload,
@@ -84,6 +87,15 @@ export function useDecideResponseAction(incidentId: string) {
 
 export function useIncidentNotes(incidentId: string | undefined) {
   return useQuery({ queryKey: ["incidents", incidentId, "notes"], queryFn: () => listIncidentNotes(incidentId!), enabled: Boolean(incidentId) });
+}
+
+export function useIncidentEvidence(incidentId: string) {
+  return useQuery({ queryKey: ["incidents", incidentId, "evidence"], queryFn: () => listIncidentEvidence(incidentId) });
+}
+
+export function useCreateIncidentEvidence(incidentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: (payload: IncidentEvidencePayload) => createIncidentEvidence(incidentId, payload), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["incidents", incidentId, "evidence"] }); } });
 }
 
 export function useCreateIncidentNote(incidentId: string) {

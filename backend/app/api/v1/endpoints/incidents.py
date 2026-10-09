@@ -53,6 +53,8 @@ async def create_incident(
     incident_service: IncidentService = Depends(get_incident_service),
     audit_service: AuditService = Depends(get_audit_service),
 ) -> IncidentDetail:
+    if payload.preset_scenario != "custom" and get_settings().app_env.lower() not in {"development", "test"}:
+        raise HTTPException(status_code=400, detail="Demo incident presets are disabled outside development/test")
     result = await incident_service.create_manual_incident(payload)
     await audit_service.record(
         request=request,
@@ -110,4 +112,3 @@ async def get_incident(
     if incident is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found")
     return incident
-

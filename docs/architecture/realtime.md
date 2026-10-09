@@ -37,6 +37,7 @@ publication failure is logged and does not roll back persisted telemetry.
 - `alert.created`: emitted after detection alerts are persisted.
 - `incident.created`: emitted when correlation creates an incident.
 - `incident.updated`: emitted when correlation recalculates an existing incident.
+- `incident.evidence_added`: emitted after an analyst attaches incident evidence. The payload contains only incident and evidence IDs; clients refetch evidence and investigation lists.
 - `investigation.queued`: emitted after an investigation request commits.
 - `investigation.running`: emitted after the worker claims a job.
 - `investigation.completed`: emitted after a worker result commits.

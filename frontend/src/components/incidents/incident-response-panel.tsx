@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
-import { useDecideResponseAction, useProposeResponseAction, useResponseActions } from "@/lib/api/hooks";
+import { useDecideResponseAction, useIncidentEvidence, useProposeResponseAction, useResponseActions } from "@/lib/api/hooks";
 import type { ResponseActionType } from "@/lib/api/resources";
 import { hasPermission } from "@/lib/auth/permissions";
 
@@ -16,6 +16,7 @@ const ACTIONS: { value: ResponseActionType; label: string; impact: string }[] = 
 export function IncidentResponsePanel({ incidentId, alertIds }: { incidentId: string; alertIds: string[] }) {
   const { user } = useAuth();
   const actions = useResponseActions(incidentId);
+  const evidence = useIncidentEvidence(incidentId);
   const propose = useProposeResponseAction(incidentId);
   const decide = useDecideResponseAction(incidentId);
   const [type, setType] = useState<ResponseActionType>("revoke_app_sessions");
@@ -28,13 +29,14 @@ export function IncidentResponsePanel({ incidentId, alertIds }: { incidentId: st
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const linkedRefs = [...alertIds.map((id) => `alert:${id}`), ...(evidence.data ?? []).map((item) => `evidence:${item.id}`)].slice(0, 20);
     await propose.mutateAsync({
       action_type: type,
       target: target.trim(),
       account_id: type === "revoke_app_sessions" ? null : accountId.trim(),
       rationale: rationale.trim(),
       impact: impact.trim(),
-      evidence_refs: alertIds.length ? alertIds.slice(0, 20).map((id) => `alert:${id}`) : [`incident:${incidentId}`],
+      evidence_refs: linkedRefs.length ? linkedRefs : [`incident:${incidentId}`],
       idempotency_key: crypto.randomUUID(),
     });
     setTarget("");
@@ -56,7 +58,7 @@ export function IncidentResponsePanel({ incidentId, alertIds }: { incidentId: st
       {type !== "revoke_app_sessions" ? <label>AWS account ID<input value={accountId} onChange={(event) => setAccountId(event.target.value)} pattern="[0-9]{12}" required /></label> : null}
       <label>Evidence-based rationale<textarea value={rationale} onChange={(event) => setRationale(event.target.value)} minLength={10} required /></label>
       <label>Expected impact<textarea value={impact} onChange={(event) => setImpact(event.target.value)} minLength={10} required /></label>
-      <small>Evidence: {alertIds.length ? `${Math.min(alertIds.length, 20)} linked alerts` : "incident record"}</small>
+      <small>Evidence: {alertIds.length} alerts, {evidence.data?.length ?? 0} attached observations. Only sources shown here are linked.</small>
       {propose.isError ? <p className="inline-error">{propose.error instanceof Error ? propose.error.message : "Proposal failed."}</p> : null}
       <button className="secondary-button" disabled={propose.isPending} type="submit">Propose for approval</button>
     </form> : null}
