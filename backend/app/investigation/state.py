@@ -24,6 +24,10 @@ class InvestigationState(TypedDict, total=False):
     narrative: InvestigationNarrative
     recommendation_set: RecommendationSet
     result: InvestigationResult
+    proposed_action_plan: dict[str, Any]
+    policy_decisions: list[dict[str, Any]]
+    executed_actions: list[dict[str, Any]]
     provider_response_ids: list[str]
     input_tokens: int
     output_tokens: int
+

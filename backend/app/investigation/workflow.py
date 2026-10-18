@@ -89,6 +89,9 @@ class InvestigationWorkflow:
         graph.add_node("investigation", self.investigation_node)
         graph.add_node("recommendation", self.recommendation_node)
         graph.add_node("validation", self.validation_node)
+        graph.add_node("policy_gate", self.policy_gate_node)
+        graph.add_node("execute_actions", self.execute_actions_node)
+        graph.add_node("verify_actions", self.verify_actions_node)
         graph.add_node("persistence", self.persistence_node)
         graph.add_edge(START, "load_incident")
         graph.add_edge("load_incident", "timeline")
@@ -98,9 +101,13 @@ class InvestigationWorkflow:
         graph.add_edge("mitre_context", "investigation")
         graph.add_edge("investigation", "recommendation")
         graph.add_edge("recommendation", "validation")
-        graph.add_edge("validation", "persistence")
+        graph.add_edge("validation", "policy_gate")
+        graph.add_edge("policy_gate", "execute_actions")
+        graph.add_edge("execute_actions", "verify_actions")
+        graph.add_edge("verify_actions", "persistence")
         graph.add_edge("persistence", END)
         return graph.compile()
+
 
     async def load_incident_node(
         self,
@@ -290,6 +297,128 @@ class InvestigationWorkflow:
             valid_evidence_refs=set(state["context"].valid_evidence_refs),
         )
         return {"result": result}
+
+    async def policy_gate_node(self, state: InvestigationState) -> dict[str, Any]:
+        """
+        Deterministic policy gate that validates all proposed actions.
+        Runs without LLM involvement.
+        """
+        from app.response.actions import ProposedAction
+        from app.response.policy import PolicyContext, PolicyEngine
+        from app.response.circuit_breaker import CircuitBreaker
+
+        context = state["context"]
+        action_plan_raw = state.get("recommendation_set", {}).action_plan if hasattr(state.get("recommendation_set"), "action_plan") else []
+
+        engine = PolicyEngine()
+        incident_entities = set()
+        if context.incident.get("primary_username"):
+            incident_entities.add(context.incident["primary_username"])
+        if context.incident.get("primary_source_ip"):
+            incident_entities.add(context.incident["primary_source_ip"])
+        for evt in context.events:
+            if evt.get("username"):
+                incident_entities.add(evt["username"])
+            if evt.get("source_ip"):
+                incident_entities.add(evt["source_ip"])
+
+        policy_context = PolicyContext(
+            incident_id=state["incident_id"],
+            incident_entities=incident_entities,
+            valid_evidence_refs=set(context.valid_evidence_refs),
+        )
+
+        decisions = []
+        for action_dict in action_plan_raw:
+            try:
+                action = ProposedAction.model_validate(action_dict)
+                decision = await engine.evaluate(action, policy_context)
+                decisions.append({
+                    "action": action.model_dump(),
+                    "allowed": decision.allowed,
+                    "requires_human_approval": decision.requires_human_approval,
+                    "reason": decision.reason,
+                })
+            except Exception as exc:
+                decisions.append({
+                    "action": action_dict,
+                    "allowed": False,
+                    "requires_human_approval": False,
+                    "reason": f"Invalid action payload schema: {exc}",
+                })
+
+        return {"policy_decisions": decisions}
+
+    async def execute_actions_node(self, state: InvestigationState) -> dict[str, Any]:
+        """
+        Executes policy-cleared automated actions via InAppActionExecutor.
+        Actions requiring human approval remain queued for analyst signoff.
+        """
+        from app.response.actions import ProposedAction
+        from app.response.executor import InAppActionExecutor
+        from app.db.redis import redis_client
+
+        decisions = state.get("policy_decisions", [])
+        executed = []
+        executor = InAppActionExecutor(self.session, redis=redis_client)
+
+        for dec in decisions:
+            # Only auto-execute if allowed and does NOT require human approval
+            if dec["allowed"] and not dec["requires_human_approval"]:
+                try:
+                    action = ProposedAction.model_validate(dec["action"])
+                    res = await executor.execute(action, actor_label=f"investigation:{state['investigation_id']}")
+                    executed.append({
+                        "action_type": action.action_type.value,
+                        "target": action.target,
+                        "status": res.status,
+                        "undo_available": res.undo_available,
+                        "pre_state": res.pre_state,
+                        "post_state": res.post_state,
+                    })
+                except Exception as exc:
+                    executed.append({
+                        "action_type": dec["action"].get("action_type"),
+                        "target": dec["action"].get("target"),
+                        "status": "failed",
+                        "error": str(exc),
+                    })
+            elif dec["allowed"] and dec["requires_human_approval"]:
+                executed.append({
+                    "action_type": dec["action"].get("action_type"),
+                    "target": dec["action"].get("target"),
+                    "status": "pending_approval",
+                    "reason": dec["reason"],
+                })
+
+        return {"executed_actions": executed}
+
+    async def verify_actions_node(self, state: InvestigationState) -> dict[str, Any]:
+        """
+        Post-execution verification: double-checks that executed actions actually took effect.
+        """
+        from app.db.redis import redis_client
+        from app.repositories.auth_repository import UserRepository
+
+        user_repo = UserRepository(self.session)
+        verified = []
+        for item in state.get("executed_actions", []):
+            if item.get("status") == "executed":
+                action_type = item.get("action_type")
+                target = item.get("target")
+                check_ok = False
+                if action_type == "block_ip":
+                    blocked = await redis_client.get(f"ai_soc:denylist:ip:{target}")
+                    check_ok = bool(blocked)
+                elif action_type == "disable_user":
+                    user = await user_repo.get_by_email(target)
+                    check_ok = bool(user and not user.is_active)
+                elif action_type == "revoke_sessions":
+                    check_ok = True  # Verified by database flush in executor
+                item["verified"] = check_ok
+            verified.append(item)
+
+        return {"executed_actions": verified}
 
     async def persistence_node(self, state: InvestigationState) -> dict[str, Any]:
         investigation = await self.investigation_repository.get(

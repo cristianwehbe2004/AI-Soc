@@ -34,9 +34,11 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "httpx>=0.27.0,<1.0.0",
+  "moto[iam,s3]>=5.0.0,<6.0.0",
   "pytest>=8.3.2,<9.0.0",
   "pytest-asyncio>=0.23.8,<1.0.0",
 ]
+
 
 [tool.setuptools.packages.find]
 include = ["app*"]
@@ -44,6 +46,8 @@ include = ["app*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+pythonpath = [".", ".."]
 filterwarnings = [
   "ignore:The default value of `allowed_objects` will change.*",
 ]
+

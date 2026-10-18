@@ -69,10 +69,12 @@ class PlannedRecommendation(Recommendation):
 
 class PlannedRecommendationSet(BaseModel):
     recommendations: list[PlannedRecommendation] = Field(min_length=1, max_length=5)
+    action_plan: list[dict[str, Any]] = Field(default_factory=list, max_length=10)
 
 
 class RecommendationSet(BaseModel):
     recommendations: list[Recommendation] = Field(min_length=1, max_length=20)
+    action_plan: list[dict[str, Any]] = Field(default_factory=list, max_length=10)
 
 
 class InvestigationResult(BaseModel):
@@ -84,6 +86,8 @@ class InvestigationResult(BaseModel):
     risk_analysis: RiskAnalysis
     mitre_context: list[MitreContextItem]
     recommendations: list[Recommendation]
+    action_plan: list[dict[str, Any]] = Field(default_factory=list)
+
 
 
 class InvestigationContext(BaseModel):
