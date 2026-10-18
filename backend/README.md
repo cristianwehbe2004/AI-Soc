@@ -46,4 +46,12 @@ From the repository root, the same workflow is available as `make ml-dataset`, `
 
 The new incident-type classifier trains locally from reviewed JSONL cases and stays in shadow mode by default. Existing Security Hub-format findings can be pushed through an `events:write` key without enabling any AWS service. Analysts may propose incident-linked containment; a different admin must approve, and AWS execution remains disabled unless explicitly allowlisted. See `docs/ml/incident-training.md` for data, gates, cost guardrails, and security fundamentals, and `docs/api/response-actions.md` for the API.
 
+Investigations now include phased remediation plans: verify the weakness, apply
+an approved change, check the result, and recover if the change fails. Operators
+select the sources supporting a response proposal. Incident reports with no
+telemetry are not fed into the event classifier as zero-valued observations.
+The optional read-only S3 dataset input is documented in
+`docs/ml/aws-local-dataset.md`; it is dry-run by default and retains local CPU
+training. The current project choice is local training without S3 setup.
+
 For training pipeline tests, `python scripts/seed_training_incidents.py` fills a separate `training_incidents` table with public unreviewed references and synthetic lab examples. `python scripts/train_incident_classifier.py --from-db --lab-shadow` trains a shadow model from lab examples. Neither command creates live SOC incidents or activates a classifier.

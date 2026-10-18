@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 InvestigationStatus = Literal["queued", "running", "completed", "failed", "cancelled", "dead_letter"]
 AnalysisSeverity = Literal["low", "medium", "high", "critical"]
 RecommendationPriority = Literal["low", "medium", "high", "urgent"]
+INVESTIGATION_CONTRACT_VERSION = "remediation-v2"
+RemediationStep = Annotated[str, Field(min_length=1, max_length=600)]
 
 
 class EvidenceFinding(BaseModel):
@@ -44,12 +46,29 @@ class InvestigationNarrative(BaseModel):
     confidence: float = Field(ge=0, le=1)
 
 
+class RemediationPlan(BaseModel):
+    verification_steps: list[RemediationStep] = Field(min_length=1, max_length=5)
+    change_steps: list[RemediationStep] = Field(min_length=1, max_length=5)
+    validation_steps: list[RemediationStep] = Field(min_length=1, max_length=5)
+    rollback_steps: list[RemediationStep] = Field(min_length=1, max_length=5)
+    impact: str = Field(min_length=1, max_length=1000)
+
+
 class Recommendation(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     priority: RecommendationPriority
     rationale: str = Field(min_length=1, max_length=2000)
     actions: list[str] = Field(min_length=1, max_length=20)
     evidence_refs: list[str] = Field(default_factory=list, max_length=20)
+    remediation_plan: RemediationPlan | None = None
+
+
+class PlannedRecommendation(Recommendation):
+    remediation_plan: RemediationPlan
+
+
+class PlannedRecommendationSet(BaseModel):
+    recommendations: list[PlannedRecommendation] = Field(min_length=1, max_length=5)
 
 
 class RecommendationSet(BaseModel):

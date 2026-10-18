@@ -52,8 +52,8 @@ def features_for_events(events: list[dict]) -> dict[str, float]:
     }
 
 
-def load_cases(path: Path) -> list[LabeledCase]:
-    cases = [LabeledCase.model_validate(json.loads(line)) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+def parse_cases(content: str) -> list[LabeledCase]:
+    cases = [LabeledCase.model_validate(json.loads(line)) for line in content.splitlines() if line.strip()]
     if len({case.incident_id for case in cases}) != len(cases):
         raise ValueError("Dataset contains repeated incident IDs")
     if any(case.labels - set(LABELS) for case in cases):
@@ -61,6 +61,10 @@ def load_cases(path: Path) -> list[LabeledCase]:
     if len(cases) < 100:
         raise ValueError("At least 100 labeled incidents are required")
     return sorted(cases, key=lambda case: case.observed_at)
+
+
+def load_cases(path: Path) -> list[LabeledCase]:
+    return parse_cases(path.read_text(encoding="utf-8"))
 
 
 def _matrix(cases: list[LabeledCase]) -> tuple[np.ndarray, np.ndarray]:
@@ -71,6 +75,7 @@ def _matrix(cases: list[LabeledCase]) -> tuple[np.ndarray, np.ndarray]:
 
 async def train_incident_classifier(
     cases: list[LabeledCase], repository: ModelRegistryRepository, settings: Settings, *, activate: bool = False,
+    dataset_provenance: dict | None = None,
 ) -> ModelRegistry:
     cases = sorted(cases, key=lambda case: case.observed_at)
     if len(cases) < 100 or len({case.incident_id for case in cases}) != len(cases):
@@ -129,7 +134,8 @@ async def train_incident_classifier(
         trained_at=now, evaluation_metrics={"test": metrics, "passed": passed},
         training_metadata={"rows": len(cases), "train": len(train), "validation": len(validation), "test": len(test),
                            "source_kinds": sorted({case.source_kind for case in cases}),
-                           "review_statuses": sorted({case.review_status for case in cases})},
+                           "review_statuses": sorted({case.review_status for case in cases}),
+                           "dataset_provenance": dataset_provenance or {}},
     ))
     if activate:
         if not passed:
@@ -139,6 +145,8 @@ async def train_incident_classifier(
 
 
 async def classify_incident(events: list[dict], repository: ModelRegistryRepository) -> dict | None:
+    if not events:
+        return None
     registry = await repository.get_active(MODEL_NAME)
     if registry is None:
         return None

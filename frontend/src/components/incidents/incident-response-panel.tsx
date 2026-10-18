@@ -24,26 +24,34 @@ export function IncidentResponsePanel({ incidentId, alertIds }: { incidentId: st
   const [accountId, setAccountId] = useState("");
   const [rationale, setRationale] = useState("");
   const [impact, setImpact] = useState(ACTIONS[0].impact);
+  const [selectedRefs, setSelectedRefs] = useState<string[]>([]);
+  const sourceOptions = [
+    { ref: `incident:${incidentId}`, label: "Incident report" },
+    ...alertIds.map((id) => ({ ref: `alert:${id}`, label: `Alert ${id}` })),
+    ...(evidence.data ?? []).map((item) => ({ ref: `evidence:${item.id}`, label: `${item.kind.replaceAll("_", " ")} · ${item.source}` })),
+  ];
+  const linkedRefs = selectedRefs.filter((ref) => sourceOptions.some((item) => item.ref === ref));
   const canPropose = Boolean(user && hasPermission(user.role_name, "responses:propose"));
   const canApprove = Boolean(user && hasPermission(user.role_name, "responses:approve"));
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const linkedRefs = [...alertIds.map((id) => `alert:${id}`), ...(evidence.data ?? []).map((item) => `evidence:${item.id}`)].slice(0, 20);
+    if (!linkedRefs.length) return;
     await propose.mutateAsync({
       action_type: type,
       target: target.trim(),
       account_id: type === "revoke_app_sessions" ? null : accountId.trim(),
       rationale: rationale.trim(),
       impact: impact.trim(),
-      evidence_refs: linkedRefs.length ? linkedRefs : [`incident:${incidentId}`],
+      evidence_refs: linkedRefs,
       idempotency_key: crypto.randomUUID(),
     });
     setTarget("");
     setRationale("");
+    setSelectedRefs([]);
   }
 
-  return <section className="panel incident-panel">
+  return <section className="panel incident-panel" id="response-actions">
     <div className="panel-heading"><div><p className="eyebrow">Controlled defense</p><h2>Response actions</h2></div><ShieldCheck size={19} /></div>
     <p>Actions require a separate administrator approval. AWS execution is disabled unless explicitly configured on the server.</p>
     {actions.isError ? <p className="inline-error">Could not load response actions.</p> : null}
@@ -58,9 +66,9 @@ export function IncidentResponsePanel({ incidentId, alertIds }: { incidentId: st
       {type !== "revoke_app_sessions" ? <label>AWS account ID<input value={accountId} onChange={(event) => setAccountId(event.target.value)} pattern="[0-9]{12}" required /></label> : null}
       <label>Evidence-based rationale<textarea value={rationale} onChange={(event) => setRationale(event.target.value)} minLength={10} required /></label>
       <label>Expected impact<textarea value={impact} onChange={(event) => setImpact(event.target.value)} minLength={10} required /></label>
-      <small>Evidence: {alertIds.length} alerts, {evidence.data?.length ?? 0} attached observations. Only sources shown here are linked.</small>
+      <fieldset className="response-evidence-options"><legend>Supporting evidence</legend><small>Select the sources that support this action, up to 20.</small>{sourceOptions.map((item) => <label key={item.ref}><input type="checkbox" checked={linkedRefs.includes(item.ref)} disabled={!linkedRefs.includes(item.ref) && linkedRefs.length >= 20} onChange={(event) => setSelectedRefs((current) => event.target.checked ? [...current, item.ref] : current.filter((ref) => ref !== item.ref))} />{item.label}</label>)}</fieldset>
       {propose.isError ? <p className="inline-error">{propose.error instanceof Error ? propose.error.message : "Proposal failed."}</p> : null}
-      <button className="secondary-button" disabled={propose.isPending} type="submit">Propose for approval</button>
+      <button className="secondary-button" disabled={propose.isPending || !linkedRefs.length} type="submit">Propose for approval</button>
     </form> : null}
   </section>;
 }

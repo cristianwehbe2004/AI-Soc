@@ -1,6 +1,25 @@
 {
   "components": {
     "schemas": {
+      "ASFFBatch": {
+        "properties": {
+          "findings": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Findings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "findings"
+        ],
+        "title": "ASFFBatch",
+        "type": "object"
+      },
       "AlertResponse": {
         "properties": {
           "confidence": {
@@ -750,7 +769,8 @@
               "file_access",
               "privilege_change",
               "process",
-              "api"
+              "api",
+              "security_finding"
             ],
             "title": "Category",
             "type": "string"
@@ -831,7 +851,12 @@
               "resource_access",
               "account_created",
               "account_deleted",
-              "password_changed"
+              "password_changed",
+              "cloud_finding",
+              "access_key_used",
+              "s3_public_exposure",
+              "secret_exposure",
+              "data_exfiltration"
             ],
             "title": "Event Type",
             "type": "string"
@@ -1418,6 +1443,74 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "IncidentCreate": {
+        "properties": {
+          "description": {
+            "maxLength": 2000,
+            "minLength": 5,
+            "title": "Description",
+            "type": "string"
+          },
+          "preset_scenario": {
+            "default": "custom",
+            "enum": [
+              "custom",
+              "brute_force",
+              "privilege_escalation",
+              "data_exfiltration"
+            ],
+            "title": "Preset Scenario",
+            "type": "string"
+          },
+          "primary_source_ip": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Source Ip"
+          },
+          "primary_username": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Username"
+          },
+          "severity": {
+            "default": "high",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 255,
+            "minLength": 3,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "description"
+        ],
+        "title": "IncidentCreate",
+        "type": "object"
+      },
       "IncidentDetail": {
         "properties": {
           "alerts": {
@@ -1535,6 +1628,145 @@
           "notes"
         ],
         "title": "IncidentDetail",
+        "type": "object"
+      },
+      "IncidentEvidenceCreate": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "analyst_observation",
+              "network_observation",
+              "asset_configuration",
+              "identity_activity",
+              "vulnerability_report"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "network": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NetworkObservation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "source": {
+            "maxLength": 160,
+            "minLength": 3,
+            "title": "Source",
+            "type": "string"
+          },
+          "summary": {
+            "maxLength": 2000,
+            "minLength": 8,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "source",
+          "summary"
+        ],
+        "title": "IncidentEvidenceCreate",
+        "type": "object"
+      },
+      "IncidentEvidenceResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "incident_id": {
+            "format": "uuid",
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "analyst_observation",
+              "network_observation",
+              "asset_configuration",
+              "identity_activity",
+              "vulnerability_report"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "network": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NetworkObservation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "sensitive_redacted": {
+            "title": "Sensitive Redacted",
+            "type": "boolean"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "submitted_by": {
+            "format": "uuid",
+            "title": "Submitted By",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "incident_id",
+          "submitted_by",
+          "kind",
+          "source",
+          "summary",
+          "network",
+          "observed_at",
+          "sensitive_redacted",
+          "created_at"
+        ],
+        "title": "IncidentEvidenceResponse",
         "type": "object"
       },
       "IncidentListItem": {
@@ -1892,6 +2124,17 @@
             ],
             "title": "Error"
           },
+          "error_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Class"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -1909,6 +2152,18 @@
           "model": {
             "title": "Model",
             "type": "string"
+          },
+          "next_retry_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Retry At"
           },
           "output_tokens": {
             "title": "Output Tokens",
@@ -1961,7 +2216,9 @@
               "queued",
               "running",
               "completed",
-              "failed"
+              "failed",
+              "cancelled",
+              "dead_letter"
             ],
             "title": "Status",
             "type": "string"
@@ -2218,6 +2475,64 @@
         "title": "MitreTechniqueResponse",
         "type": "object"
       },
+      "NetworkObservation": {
+        "properties": {
+          "destination_port": {
+            "maximum": 65535.0,
+            "minimum": 1.0,
+            "title": "Destination Port",
+            "type": "integer"
+          },
+          "destination_zone": {
+            "enum": [
+              "internet",
+              "dmz",
+              "internal",
+              "restricted",
+              "unknown"
+            ],
+            "title": "Destination Zone",
+            "type": "string"
+          },
+          "disposition": {
+            "enum": [
+              "allowed",
+              "blocked",
+              "unknown"
+            ],
+            "title": "Disposition",
+            "type": "string"
+          },
+          "protocol": {
+            "default": "tcp",
+            "enum": [
+              "tcp",
+              "udp"
+            ],
+            "title": "Protocol",
+            "type": "string"
+          },
+          "source_zone": {
+            "enum": [
+              "internet",
+              "dmz",
+              "internal",
+              "restricted",
+              "unknown"
+            ],
+            "title": "Source Zone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_zone",
+          "destination_zone",
+          "destination_port",
+          "disposition"
+        ],
+        "title": "NetworkObservation",
+        "type": "object"
+      },
       "RealtimeTicketResponse": {
         "properties": {
           "expires_in": {
@@ -2271,6 +2586,16 @@
             "title": "Rationale",
             "type": "string"
           },
+          "remediation_plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RemediationPlan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "title": {
             "maxLength": 255,
             "minLength": 1,
@@ -2285,6 +2610,276 @@
           "actions"
         ],
         "title": "Recommendation",
+        "type": "object"
+      },
+      "RemediationPlan": {
+        "properties": {
+          "change_steps": {
+            "items": {
+              "maxLength": 600,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 5,
+            "minItems": 1,
+            "title": "Change Steps",
+            "type": "array"
+          },
+          "impact": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Impact",
+            "type": "string"
+          },
+          "rollback_steps": {
+            "items": {
+              "maxLength": 600,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 5,
+            "minItems": 1,
+            "title": "Rollback Steps",
+            "type": "array"
+          },
+          "validation_steps": {
+            "items": {
+              "maxLength": 600,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 5,
+            "minItems": 1,
+            "title": "Validation Steps",
+            "type": "array"
+          },
+          "verification_steps": {
+            "items": {
+              "maxLength": 600,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 5,
+            "minItems": 1,
+            "title": "Verification Steps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "verification_steps",
+          "change_steps",
+          "validation_steps",
+          "rollback_steps",
+          "impact"
+        ],
+        "title": "RemediationPlan",
+        "type": "object"
+      },
+      "ResponseActionCreate": {
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "action_type": {
+            "enum": [
+              "revoke_app_sessions",
+              "disable_aws_access_key",
+              "block_s3_public_access"
+            ],
+            "title": "Action Type",
+            "type": "string"
+          },
+          "evidence_refs": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "idempotency_key": {
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "impact": {
+            "maxLength": 2000,
+            "minLength": 10,
+            "title": "Impact",
+            "type": "string"
+          },
+          "rationale": {
+            "maxLength": 2000,
+            "minLength": 10,
+            "title": "Rationale",
+            "type": "string"
+          },
+          "target": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_type",
+          "target",
+          "rationale",
+          "impact",
+          "evidence_refs",
+          "idempotency_key"
+        ],
+        "title": "ResponseActionCreate",
+        "type": "object"
+      },
+      "ResponseActionResponse": {
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "action_type": {
+            "enum": [
+              "revoke_app_sessions",
+              "disable_aws_access_key",
+              "block_s3_public_access"
+            ],
+            "title": "Action Type",
+            "type": "string"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "evidence_refs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "impact": {
+            "title": "Impact",
+            "type": "string"
+          },
+          "incident_id": {
+            "format": "uuid",
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "proposed_by": {
+            "format": "uuid",
+            "title": "Proposed By",
+            "type": "string"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "status": {
+            "enum": [
+              "proposed",
+              "approved",
+              "running",
+              "succeeded",
+              "failed",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "incident_id",
+          "action_type",
+          "target",
+          "account_id",
+          "status",
+          "rationale",
+          "impact",
+          "evidence_refs",
+          "idempotency_key",
+          "proposed_by",
+          "approved_by",
+          "result",
+          "error",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ResponseActionResponse",
         "type": "object"
       },
       "RiskAnalysis": {
@@ -2534,6 +3129,34 @@
           "items"
         ],
         "title": "UserListResponse",
+        "type": "object"
+      },
+      "UserRegister": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "full_name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Full Name",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 12,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "full_name",
+          "password"
+        ],
+        "title": "UserRegister",
         "type": "object"
       },
       "UserResponse": {
@@ -3205,6 +3828,93 @@
         ]
       }
     },
+    "/api/v1/auth/register": {
+      "post": {
+        "operationId": "register_api_v1_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRegister"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register",
+        "tags": [
+          "authentication"
+        ]
+      }
+    },
+    "/api/v1/aws/findings/bulk": {
+      "post": {
+        "operationId": "ingest_asff_api_v1_aws_findings_bulk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ASFFBatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventBulkIngestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Ingest Asff",
+        "tags": [
+          "aws-findings"
+        ]
+      }
+    },
     "/api/v1/dashboard/summary": {
       "get": {
         "operationId": "get_dashboard_summary_api_v1_dashboard_summary_get",
@@ -3290,7 +4000,12 @@
                     "resource_access",
                     "account_created",
                     "account_deleted",
-                    "password_changed"
+                    "password_changed",
+                    "cloud_finding",
+                    "access_key_used",
+                    "s3_public_exposure",
+                    "secret_exposure",
+                    "data_exfiltration"
                   ],
                   "type": "string"
                 },
@@ -3316,7 +4031,8 @@
                     "file_access",
                     "privilege_change",
                     "process",
-                    "api"
+                    "api",
+                    "security_finding"
                   ],
                   "type": "string"
                 },
@@ -3731,6 +4447,50 @@
         "tags": [
           "incidents"
         ]
+      },
+      "post": {
+        "operationId": "create_incident_api_v1_incidents_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncidentCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Create Incident",
+        "tags": [
+          "incidents"
+        ]
       }
     },
     "/api/v1/incidents/{incident_id}": {
@@ -3778,6 +4538,164 @@
         "summary": "Get Incident",
         "tags": [
           "incidents"
+        ]
+      }
+    },
+    "/api/v1/incidents/{incident_id}/classification": {
+      "get": {
+        "operationId": "get_incident_classification_api_v1_incidents__incident_id__classification_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Incident Classification Api V1 Incidents  Incident Id  Classification Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Incident Classification",
+        "tags": [
+          "incident-context"
+        ]
+      }
+    },
+    "/api/v1/incidents/{incident_id}/evidence": {
+      "get": {
+        "operationId": "get_evidence_api_v1_incidents__incident_id__evidence_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/IncidentEvidenceResponse"
+                  },
+                  "title": "Response Get Evidence Api V1 Incidents  Incident Id  Evidence Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Evidence",
+        "tags": [
+          "incident-evidence"
+        ]
+      },
+      "post": {
+        "operationId": "create_evidence_api_v1_incidents__incident_id__evidence_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncidentEvidenceCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentEvidenceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Create Evidence",
+        "tags": [
+          "incident-evidence"
         ]
       }
     },
@@ -4099,6 +5017,114 @@
         ]
       }
     },
+    "/api/v1/incidents/{incident_id}/response-actions": {
+      "get": {
+        "operationId": "list_actions_api_v1_incidents__incident_id__response_actions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ResponseActionResponse"
+                  },
+                  "title": "Response List Actions Api V1 Incidents  Incident Id  Response Actions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Actions",
+        "tags": [
+          "response-actions"
+        ]
+      },
+      "post": {
+        "operationId": "propose_action_api_v1_incidents__incident_id__response_actions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResponseActionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Propose Action",
+        "tags": [
+          "response-actions"
+        ]
+      }
+    },
     "/api/v1/investigations/{investigation_id}": {
       "get": {
         "operationId": "get_investigation_api_v1_investigations__investigation_id__get",
@@ -4331,6 +5357,111 @@
         "summary": "Get Technique",
         "tags": [
           "mitre"
+        ]
+      }
+    },
+    "/api/v1/response-actions/{action_id}": {
+      "get": {
+        "operationId": "get_action_api_v1_response_actions__action_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "action_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Action Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Action",
+        "tags": [
+          "response-actions"
+        ]
+      }
+    },
+    "/api/v1/response-actions/{action_id}/{decision}": {
+      "post": {
+        "operationId": "decide_action_api_v1_response_actions__action_id___decision__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "action_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Action Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "decision",
+            "required": true,
+            "schema": {
+              "title": "Decision",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Decide Action",
+        "tags": [
+          "response-actions"
         ]
       }
     },

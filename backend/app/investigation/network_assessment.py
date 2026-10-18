@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.schemas.investigation import EvidenceFinding, Recommendation
+from app.schemas.investigation import EvidenceFinding, Recommendation, RemediationPlan
 
 SENSITIVE_PORTS = {22, 445, 1433, 3306, 3389, 5432, 5900, 6379, 9200, 27017}
 
@@ -57,6 +57,24 @@ def assess_network_evidence(items: list[dict]) -> NetworkAssessment:
                 "Test legitimate traffic after the change and monitor for repeat attempts.",
             ],
             evidence_refs=[reference],
+            remediation_plan=RemediationPlan(
+                verification_steps=[
+                    "Confirm the affected assets and the reported path using firewall rules, flow logs, and the asset owner's intended access policy.",
+                ],
+                change_steps=[
+                    "Save the current rule configuration and obtain the approved change window.",
+                    "Restrict the unauthorized path to the approved sources, destinations, and ports; retain a tested administrator access path.",
+                ],
+                validation_steps=[
+                    "Verify that an unauthorized source is blocked and required business traffic still succeeds.",
+                    "Review firewall and flow logs for continued access attempts after the change.",
+                ],
+                rollback_steps=[
+                    "If required traffic fails, restore the approved previous configuration or a narrower temporary rule while investigating the failure.",
+                    "Verify administrator access and document any remaining exposure with the incident owner.",
+                ],
+                impact="Restricting this path can interrupt legitimate remote administration or application connections; confirm dependencies with the asset owner.",
+            ),
         ))
     gaps = []
     if not relevant:

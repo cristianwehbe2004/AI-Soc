@@ -59,6 +59,29 @@ The status is one of `queued`, `running`, `completed`, or `failed`. A completed
 job includes evidence findings, risk analysis, ATT&CK context, an investigation
 narrative, recommendations, provider response IDs, and token usage.
 
+New recommendations include a required `remediation_plan` in provider output:
+
+- `verification_steps`: confirm the affected resource, intended policy, and weakness.
+- `change_steps`: describe the proposed containment or permanent fix.
+- `validation_steps`: define observable checks for security and required business traffic.
+- `rollback_steps`: describe recovery if the change fails; compromised credentials must not be restored.
+- `impact`: explain likely interruption to legitimate users or workloads.
+
+The provider returns at most five concise recommendations within the existing
+output-token limit; this still uses the same four provider calls per investigation.
+Network assessments supply a deterministic plan alongside their evidence-linked
+recommendation. Older stored results without a plan remain readable. A workflow
+contract version is part of the context hash, so an explicit new request can
+generate a plan even when a pre-upgrade investigation was cached.
+
+The investigation page displays the four phases and links to the incident's
+response panel. The analyst selects the relevant supporting evidence when
+proposing an action. After an approved change, attach the validation outcome as
+incident evidence and request another investigation. The app does not infer that
+a weakness is fixed merely because a recommendation was generated, nor does it
+close the incident automatically. The existing response worker separately
+verifies the post-action state for its supported action types.
+
 ## List incident investigations
 
 `GET /api/v1/incidents/{incident_id}/investigations`
@@ -88,3 +111,5 @@ before trusting detection or remediation rates. The design follows
 testing and mitigation, [CISA network hardening guidance](https://www.cisa.gov/resources-tools/resources/enhanced-visibility-and-hardening-guidance-communications-infrastructure)
 for segmentation and access controls, and [OWASP guidance on prompt injection](https://genai.owasp.org/llmrisk/llm01-prompt-injection/)
 and [sensitive-information disclosure](https://genai.owasp.org/llmrisk/llm022025-sensitive-information-disclosure/).
+The verification, remediation, and recovery phases follow
+[NIST SP 800-61 Rev. 3](https://csrc.nist.gov/pubs/sp/800/61/r3/final).

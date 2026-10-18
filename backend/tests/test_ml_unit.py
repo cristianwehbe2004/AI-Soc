@@ -15,6 +15,7 @@ from app.detection.rules.ml_anomaly import MLAnomalyRule
 from app.ml.evaluation import evaluate_frames
 from app.ml.features import FEATURE_COLUMNS
 from app.ml.inference import AnomalyScore, MLInferenceService
+from app.ml.incident_classifier import classify_incident
 from app.ml.synthetic import synthetic_feature_sets
 from app.models.event import Event
 from app.models.model_registry import ModelRegistry
@@ -55,6 +56,12 @@ class StubRegistryRepository:
 
     async def get_active(self, model_name):
         return self.active
+
+
+@pytest.mark.asyncio
+async def test_incident_classifier_does_not_predict_without_telemetry():
+    # A report alone must not be scored as if a zero-valued event window was observed.
+    assert await classify_incident([], None) is None
 
 
 @pytest.mark.asyncio

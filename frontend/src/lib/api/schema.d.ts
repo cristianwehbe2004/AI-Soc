@@ -158,6 +158,40 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/auth/register": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Register */
+        readonly post: operations["register_api_v1_auth_register_post"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/aws/findings/bulk": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Ingest Asff */
+        readonly post: operations["ingest_asff_api_v1_aws_findings_bulk_post"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/dashboard/summary": {
         readonly parameters: {
             readonly query?: never;
@@ -254,7 +288,8 @@ export interface paths {
         /** List Incidents */
         readonly get: operations["list_incidents_api_v1_incidents_get"];
         readonly put?: never;
-        readonly post?: never;
+        /** Create Incident */
+        readonly post: operations["create_incident_api_v1_incidents_post"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -272,6 +307,41 @@ export interface paths {
         readonly get: operations["get_incident_api_v1_incidents__incident_id__get"];
         readonly put?: never;
         readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/incidents/{incident_id}/classification": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Get Incident Classification */
+        readonly get: operations["get_incident_classification_api_v1_incidents__incident_id__classification_get"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/incidents/{incident_id}/evidence": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Get Evidence */
+        readonly get: operations["get_evidence_api_v1_incidents__incident_id__evidence_get"];
+        readonly put?: never;
+        /** Create Evidence */
+        readonly post: operations["create_evidence_api_v1_incidents__incident_id__evidence_post"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -348,6 +418,24 @@ export interface paths {
         readonly patch: operations["update_note_api_v1_incidents__incident_id__notes__note_id__patch"];
         readonly trace?: never;
     };
+    readonly "/api/v1/incidents/{incident_id}/response-actions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List Actions */
+        readonly get: operations["list_actions_api_v1_incidents__incident_id__response_actions_get"];
+        readonly put?: never;
+        /** Propose Action */
+        readonly post: operations["propose_action_api_v1_incidents__incident_id__response_actions_post"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/investigations/{investigation_id}": {
         readonly parameters: {
             readonly query?: never;
@@ -410,6 +498,40 @@ export interface paths {
         readonly get: operations["get_technique_api_v1_mitre_techniques__external_id__get"];
         readonly put?: never;
         readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/response-actions/{action_id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Get Action */
+        readonly get: operations["get_action_api_v1_response_actions__action_id__get"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/response-actions/{action_id}/{decision}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Decide Action */
+        readonly post: operations["decide_action_api_v1_response_actions__action_id___decision__post"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -590,6 +712,13 @@ export interface components {
             /** Scopes */
             readonly scopes: readonly string[];
         };
+        /** ASFFBatch */
+        readonly ASFFBatch: {
+            /** Findings */
+            readonly findings: readonly {
+                readonly [key: string]: unknown;
+            }[];
+        };
         /** AuditLogListResponse */
         readonly AuditLogListResponse: {
             /** Items */
@@ -722,7 +851,7 @@ export interface components {
              * Category
              * @enum {string}
              */
-            readonly category: "authentication" | "network" | "cloud" | "application" | "file_access" | "privilege_change" | "process" | "api";
+            readonly category: "authentication" | "network" | "cloud" | "application" | "file_access" | "privilege_change" | "process" | "api" | "security_finding";
             /** Country */
             readonly country?: string | null;
             /** Destination Ip */
@@ -737,7 +866,7 @@ export interface components {
              * Event Type
              * @enum {string}
              */
-            readonly event_type: "login_success" | "login_failure" | "logout" | "api_request" | "api_error" | "file_access" | "file_download" | "privilege_change" | "network_connection" | "network_scan" | "resource_access" | "account_created" | "account_deleted" | "password_changed";
+            readonly event_type: "login_success" | "login_failure" | "logout" | "api_request" | "api_error" | "file_access" | "file_download" | "privilege_change" | "network_connection" | "network_scan" | "resource_access" | "account_created" | "account_deleted" | "password_changed" | "cloud_finding" | "access_key_used" | "s3_public_exposure" | "secret_exposure" | "data_exfiltration";
             /** Hostname */
             readonly hostname?: string | null;
             /** Metadata */
@@ -907,6 +1036,29 @@ export interface components {
             /** Detail */
             readonly detail?: readonly components["schemas"]["ValidationError"][];
         };
+        /** IncidentCreate */
+        readonly IncidentCreate: {
+            /** Description */
+            readonly description: string;
+            /**
+             * Preset Scenario
+             * @default custom
+             * @enum {string}
+             */
+            readonly preset_scenario: "custom" | "brute_force" | "privilege_escalation" | "data_exfiltration";
+            /** Primary Source Ip */
+            readonly primary_source_ip?: string | null;
+            /** Primary Username */
+            readonly primary_username?: string | null;
+            /**
+             * Severity
+             * @default high
+             * @enum {string}
+             */
+            readonly severity: "low" | "medium" | "high" | "critical";
+            /** Title */
+            readonly title: string;
+        };
         /** IncidentDetail */
         readonly IncidentDetail: {
             /** Alerts */
@@ -956,6 +1108,58 @@ export interface components {
              * Format: date-time
              */
             readonly updated_at: string;
+        };
+        /** IncidentEvidenceCreate */
+        readonly IncidentEvidenceCreate: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            readonly kind: "analyst_observation" | "network_observation" | "asset_configuration" | "identity_activity" | "vulnerability_report";
+            readonly network?: components["schemas"]["NetworkObservation"] | null;
+            /** Observed At */
+            readonly observed_at?: string | null;
+            /** Source */
+            readonly source: string;
+            /** Summary */
+            readonly summary: string;
+        };
+        /** IncidentEvidenceResponse */
+        readonly IncidentEvidenceResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            readonly created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
+            /**
+             * Incident Id
+             * Format: uuid
+             */
+            readonly incident_id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            readonly kind: "analyst_observation" | "network_observation" | "asset_configuration" | "identity_activity" | "vulnerability_report";
+            readonly network: components["schemas"]["NetworkObservation"] | null;
+            /** Observed At */
+            readonly observed_at: string | null;
+            /** Sensitive Redacted */
+            readonly sensitive_redacted: boolean;
+            /** Source */
+            readonly source: string;
+            /**
+             * Submitted By
+             * Format: uuid
+             */
+            readonly submitted_by: string;
+            /** Summary */
+            readonly summary: string;
         };
         /** IncidentListItem */
         readonly IncidentListItem: {
@@ -1100,6 +1304,8 @@ export interface components {
             readonly created_at: string;
             /** Error */
             readonly error: string | null;
+            /** Error Class */
+            readonly error_class?: string | null;
             /**
              * Id
              * Format: uuid
@@ -1114,6 +1320,8 @@ export interface components {
             readonly input_tokens: number;
             /** Model */
             readonly model: string;
+            /** Next Retry At */
+            readonly next_retry_at?: string | null;
             /** Output Tokens */
             readonly output_tokens: number;
             /** Prompt Version */
@@ -1134,7 +1342,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            readonly status: "queued" | "running" | "completed" | "failed";
+            readonly status: "queued" | "running" | "completed" | "failed" | "cancelled" | "dead_letter";
             /**
              * Updated At
              * Format: date-time
@@ -1219,6 +1427,32 @@ export interface components {
             /** Version */
             readonly version: string;
         };
+        /** NetworkObservation */
+        readonly NetworkObservation: {
+            /** Destination Port */
+            readonly destination_port: number;
+            /**
+             * Destination Zone
+             * @enum {string}
+             */
+            readonly destination_zone: "internet" | "dmz" | "internal" | "restricted" | "unknown";
+            /**
+             * Disposition
+             * @enum {string}
+             */
+            readonly disposition: "allowed" | "blocked" | "unknown";
+            /**
+             * Protocol
+             * @default tcp
+             * @enum {string}
+             */
+            readonly protocol: "tcp" | "udp";
+            /**
+             * Source Zone
+             * @enum {string}
+             */
+            readonly source_zone: "internet" | "dmz" | "internal" | "restricted" | "unknown";
+        };
         /** RealtimeTicketResponse */
         readonly RealtimeTicketResponse: {
             /** Expires In */
@@ -1239,8 +1473,100 @@ export interface components {
             readonly priority: "low" | "medium" | "high" | "urgent";
             /** Rationale */
             readonly rationale: string;
+            readonly remediation_plan?: components["schemas"]["RemediationPlan"] | null;
             /** Title */
             readonly title: string;
+        };
+        /** RemediationPlan */
+        readonly RemediationPlan: {
+            /** Change Steps */
+            readonly change_steps: readonly string[];
+            /** Impact */
+            readonly impact: string;
+            /** Rollback Steps */
+            readonly rollback_steps: readonly string[];
+            /** Validation Steps */
+            readonly validation_steps: readonly string[];
+            /** Verification Steps */
+            readonly verification_steps: readonly string[];
+        };
+        /** ResponseActionCreate */
+        readonly ResponseActionCreate: {
+            /** Account Id */
+            readonly account_id?: string | null;
+            /**
+             * Action Type
+             * @enum {string}
+             */
+            readonly action_type: "revoke_app_sessions" | "disable_aws_access_key" | "block_s3_public_access";
+            /** Evidence Refs */
+            readonly evidence_refs: readonly string[];
+            /** Idempotency Key */
+            readonly idempotency_key: string;
+            /** Impact */
+            readonly impact: string;
+            /** Rationale */
+            readonly rationale: string;
+            /** Target */
+            readonly target: string;
+        };
+        /** ResponseActionResponse */
+        readonly ResponseActionResponse: {
+            /** Account Id */
+            readonly account_id: string | null;
+            /**
+             * Action Type
+             * @enum {string}
+             */
+            readonly action_type: "revoke_app_sessions" | "disable_aws_access_key" | "block_s3_public_access";
+            /** Approved By */
+            readonly approved_by: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            readonly created_at: string;
+            /** Error */
+            readonly error: string | null;
+            /** Evidence Refs */
+            readonly evidence_refs: readonly string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
+            /** Idempotency Key */
+            readonly idempotency_key: string;
+            /** Impact */
+            readonly impact: string;
+            /**
+             * Incident Id
+             * Format: uuid
+             */
+            readonly incident_id: string;
+            /**
+             * Proposed By
+             * Format: uuid
+             */
+            readonly proposed_by: string;
+            /** Rationale */
+            readonly rationale: string;
+            /** Result */
+            readonly result: {
+                readonly [key: string]: unknown;
+            } | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            readonly status: "proposed" | "approved" | "running" | "succeeded" | "failed" | "rejected";
+            /** Target */
+            readonly target: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            readonly updated_at: string;
         };
         /** RiskAnalysis */
         readonly RiskAnalysis: {
@@ -1332,6 +1658,18 @@ export interface components {
             readonly offset: number;
             /** Total */
             readonly total: number;
+        };
+        /** UserRegister */
+        readonly UserRegister: {
+            /**
+             * Email
+             * Format: email
+             */
+            readonly email: string;
+            /** Full Name */
+            readonly full_name: string;
+            /** Password */
+            readonly password: string;
         };
         /** UserResponse */
         readonly UserResponse: {
@@ -1678,6 +2016,72 @@ export interface operations {
             };
         };
     };
+    readonly register_api_v1_auth_register_post: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["UserRegister"];
+            };
+        };
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly ingest_asff_api_v1_aws_findings_bulk_post: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ASFFBatch"];
+            };
+        };
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["EventBulkIngestResponse"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     readonly get_dashboard_summary_api_v1_dashboard_summary_get: {
         readonly parameters: {
             readonly query?: never;
@@ -1701,9 +2105,9 @@ export interface operations {
     readonly list_events_api_v1_events_get: {
         readonly parameters: {
             readonly query?: {
-                readonly category?: ("authentication" | "network" | "cloud" | "application" | "file_access" | "privilege_change" | "process" | "api") | null;
+                readonly category?: ("authentication" | "network" | "cloud" | "application" | "file_access" | "privilege_change" | "process" | "api" | "security_finding") | null;
                 readonly end_time?: string | null;
-                readonly event_type?: ("login_success" | "login_failure" | "logout" | "api_request" | "api_error" | "file_access" | "file_download" | "privilege_change" | "network_connection" | "network_scan" | "resource_access" | "account_created" | "account_deleted" | "password_changed") | null;
+                readonly event_type?: ("login_success" | "login_failure" | "logout" | "api_request" | "api_error" | "file_access" | "file_download" | "privilege_change" | "network_connection" | "network_scan" | "resource_access" | "account_created" | "account_deleted" | "password_changed" | "cloud_finding" | "access_key_used" | "s3_public_exposure" | "secret_exposure" | "data_exfiltration") | null;
                 readonly limit?: number;
                 readonly offset?: number;
                 readonly severity?: ("low" | "medium" | "high" | "critical") | null;
@@ -1890,6 +2294,39 @@ export interface operations {
             };
         };
     };
+    readonly create_incident_api_v1_incidents_post: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["IncidentCreate"];
+            };
+        };
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IncidentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     readonly get_incident_api_v1_incidents__incident_id__get: {
         readonly parameters: {
             readonly query?: never;
@@ -1908,6 +2345,105 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["IncidentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly get_incident_classification_api_v1_incidents__incident_id__classification_get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly incident_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        readonly [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly get_evidence_api_v1_incidents__incident_id__evidence_get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly incident_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": readonly components["schemas"]["IncidentEvidenceResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly create_evidence_api_v1_incidents__incident_id__evidence_post: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly incident_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["IncidentEvidenceCreate"];
+            };
+        };
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IncidentEvidenceResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2116,6 +2652,72 @@ export interface operations {
             };
         };
     };
+    readonly list_actions_api_v1_incidents__incident_id__response_actions_get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly incident_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": readonly components["schemas"]["ResponseActionResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly propose_action_api_v1_incidents__incident_id__response_actions_post: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly incident_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ResponseActionCreate"];
+            };
+        };
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ResponseActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     readonly get_investigation_api_v1_investigations__investigation_id__get: {
         readonly parameters: {
             readonly query?: never;
@@ -2230,6 +2832,69 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["MitreTechniqueResponse"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly get_action_api_v1_response_actions__action_id__get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly action_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ResponseActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly decide_action_api_v1_response_actions__action_id___decision__post: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly action_id: string;
+                readonly decision: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 202: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ResponseActionResponse"];
                 };
             };
             /** @description Validation Error */

@@ -17,6 +17,7 @@ from app.schemas.investigation import (
     InvestigationNarrative,
     InvestigationResult,
     MitreContextItem,
+    PlannedRecommendationSet,
     RecommendationSet,
     RiskAnalysis,
 )
@@ -241,17 +242,29 @@ class InvestigationWorkflow:
         response = await self.provider.generate_structured(
             instructions=(
                 f"{UNTRUSTED_DATA_INSTRUCTIONS}\nRecommend defensive analyst "
-                "actions only. Do not propose autonomous remediation. Every "
-                "recommendation must cite supplied evidence."
+                "actions only. Return 1 to 5 concise recommendations. Every "
+                "recommendation must cite supplied evidence and include a remediation_plan: "
+                "verification_steps to confirm the weakness and intended policy, change_steps "
+                "for authorized containment or a permanent fix, validation_steps with observable "
+                "success criteria, rollback_steps for failed changes, and impact on legitimate "
+                "users or workloads. Keep each phase to 1 to 3 short steps. "
+                "Use specific resources only when present in the supplied evidence; otherwise "
+                "ask the analyst to identify the affected resource. Do not invent targets or "
+                "claim a fix was executed. If credentials are compromised, do not restore them "
+                "during rollback; use replacement credentials. Classifier probabilities are "
+                "uncalibrated context, not proof. Do not propose autonomous remediation."
             ),
             payload={
+                "incident": context.incident,
+                "alerts": context.alerts,
+                "events": context.events,
                 "narrative": state["narrative"].model_dump(),
                 "risk": state["risk_analysis"].model_dump(),
                 "findings": state["evidence_analysis"].model_dump(),
                 "incident_evidence": context.incident_evidence,
                 "valid_evidence_refs": context.valid_evidence_refs,
             },
-            response_model=RecommendationSet,
+            response_model=PlannedRecommendationSet,
         )
         network = assess_network_evidence(context.incident_evidence)
         update = self._provider_update(state, response, "recommendation_set")

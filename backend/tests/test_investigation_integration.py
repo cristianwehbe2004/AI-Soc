@@ -26,8 +26,9 @@ from app.schemas.investigation import (
     EvidenceAnalysis,
     EvidenceFinding,
     InvestigationNarrative,
-    Recommendation,
-    RecommendationSet,
+    PlannedRecommendation,
+    PlannedRecommendationSet,
+    RemediationPlan,
     RiskAnalysis,
 )
 from app.services.investigation_service import InvestigationService
@@ -92,14 +93,14 @@ class MockInvestigationProvider(LLMProvider):
                 ),
                 confidence=0.9,
             )
-        elif response_model is RecommendationSet:
+        elif response_model is PlannedRecommendationSet:
             valid_refs = payload["valid_evidence_refs"]
             evidence_ref = (
                 "event:invented" if self.invalid_reference else valid_refs[0]
             )
-            output = RecommendationSet(
+            output = PlannedRecommendationSet(
                 recommendations=[
-                    Recommendation(
+                    PlannedRecommendation(
                         title="Contain the affected account",
                         priority="urgent",
                         rationale="The account may be controlled by an attacker.",
@@ -108,6 +109,13 @@ class MockInvestigationProvider(LLMProvider):
                             "Reset credentials after analyst approval",
                         ],
                         evidence_refs=[evidence_ref],
+                        remediation_plan=RemediationPlan(
+                            verification_steps=["Confirm the account and session activity with the account owner."],
+                            change_steps=["Approve session revocation and rotate compromised credentials."],
+                            validation_steps=["Verify revoked sessions fail and the legitimate owner can sign in."],
+                            rollback_steps=["Restore access with replacement credentials; keep compromised sessions revoked."],
+                            impact="The affected user will need to sign in again.",
+                        ),
                     )
                 ]
             )
@@ -275,6 +283,7 @@ async def test_stored_incident_is_investigated_end_to_end() -> None:
     assert "Endpoint telemetry is not available." in detail["result"]["evidence_gaps"]
     assert any("No structured network observation" in gap for gap in detail["result"]["evidence_gaps"])
     assert detail["result"]["recommendations"][0]["priority"] == "urgent"
+    assert all(item["remediation_plan"]["validation_steps"] for item in detail["result"]["recommendations"])
     assert {item["technique_id"] for item in detail["result"]["mitre_context"]} == {
         "T1078",
         "T1110",
@@ -330,6 +339,7 @@ async def test_manual_incident_with_network_evidence_gets_cited_weakness_and_sol
         assert any(reference in recommendation["evidence_refs"] and "restrict" in recommendation["title"] for recommendation in result["result"]["recommendations"])
         assert result["result"]["confidence"] <= 0.65
         assert all(finding["confidence"] <= 0.65 for finding in result["result"]["findings"])
+        assert all(recommendation["remediation_plan"]["rollback_steps"] for recommendation in result["result"]["recommendations"])
 
 
 @pytest.mark.anyio
@@ -398,6 +408,25 @@ async def test_new_evidence_creates_fresh_investigation() -> None:
     assert first.status_code == 202
     assert evidence.status_code == 201
     assert second.status_code == 202
+    assert first.json()["id"] != second.json()["id"]
+    assert len(queue.items) == 2
+
+
+@pytest.mark.anyio
+async def test_workflow_contract_change_invalidates_cached_investigation(monkeypatch) -> None:
+    incident_id = await create_stored_incident()
+    queue = FakeQueue()
+    app.dependency_overrides[get_investigation_service] = investigation_service_override(queue)
+    transport = ASGITransport(app=app)
+    try:
+        async with AsyncClient(transport=transport, base_url="http://testserver", headers=AUTH_HEADERS["analyst"]) as client:
+            monkeypatch.setattr("app.services.investigation_service.INVESTIGATION_CONTRACT_VERSION", "legacy")
+            first = await client.post(f"/api/v1/incidents/{incident_id}/investigations")
+            monkeypatch.setattr("app.services.investigation_service.INVESTIGATION_CONTRACT_VERSION", "remediation-v2")
+            second = await client.post(f"/api/v1/incidents/{incident_id}/investigations")
+    finally:
+        app.dependency_overrides.pop(get_investigation_service, None)
+    assert first.status_code == 202 and second.status_code == 202
     assert first.json()["id"] != second.json()["id"]
     assert len(queue.items) == 2
 

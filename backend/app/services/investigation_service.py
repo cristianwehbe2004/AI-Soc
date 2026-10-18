@@ -13,6 +13,7 @@ from app.models.incident_evidence import IncidentEvidence
 from app.repositories.incident_repository import IncidentRepository
 from app.repositories.investigation_repository import InvestigationRepository
 from app.schemas.investigation import (
+    INVESTIGATION_CONTRACT_VERSION,
     InvestigationListResponse,
     InvestigationResponse,
 )
@@ -143,6 +144,7 @@ class InvestigationService:
             )
         ).all()
         value = (
+            f"{INVESTIGATION_CONTRACT_VERSION}:"
             f"{incident.id}:{incident.updated_at.isoformat()}:"
             f"{incident.risk_score}:{incident.last_seen.isoformat()}:"
             f"{','.join(str(evidence_id) for evidence_id in evidence_ids)}"

@@ -26,6 +26,10 @@ Run locally in the backend container or Python environment:
 python scripts/train_incident_classifier.py artifacts/datasets/reviewed_incidents.jsonl
 ```
 
+If reviewed cases are already stored in S3, the optional [read-only S3 input](aws-local-dataset.md)
+can fetch one bounded object for **local** training. It is dry-run by default
+and requires an explicit AWS read flag. No AWS training service is used.
+
 This creates a **shadow** model only. The split is chronological 60% train / 20% threshold selection / 20% held-out test, with no incident duplicated across slices. Inspect the registry's per-label precision, recall, false-positive rate, support, and chosen threshold. Only after human review, run with `--activate`; activation requires every label to reach precision and recall >= 0.80, false-positive rate <= 0.05, and >= 3 positive held-out cases. This is a minimum gate, not proof of production fitness. Check calibration, drift, class imbalance, and performance by account before promotion. Roll back by reactivating the previous registry version. The `/api/v1/incidents/{id}/classification` endpoint returns active-model labels and probabilities, or `unavailable`.
 
 ## Incident coverage and defenses
@@ -34,7 +38,7 @@ Ingest app authentication/permission events and normalized AWS Security Finding 
 
 ## AWS free-credit guardrails
 
-The classifier trains on the existing local backend CPU and filesystem—no SageMaker, GPU instance, or AWS storage is provisioned. `AWS_RESPONSE_ENABLED=false` is the default, and AWS execution also requires `AWS_ALLOWED_ACCOUNT_IDS`; S3 additionally requires `AWS_ALLOWED_BUCKET_PREFIX`. The ingest endpoint is push-only, capped at 100 findings per request, deduplicated, and stores only selected fields. Avoid enabling Security Hub, GuardDuty, CloudTrail Lake, or data-event trails solely for this feature without checking current charges. CloudTrail Event History can be used manually for management-event context without adding a trail, but it does not provide all data-access events. Set AWS Budgets alerts and review Cost Explorer before any AWS expansion.
+The classifier trains on the existing local backend CPU and filesystem—no SageMaker, GPU instance, or AWS storage is provisioned by this project. An existing S3 object can be read only with explicit opt-in as described above. `AWS_RESPONSE_ENABLED=false` is the default, and AWS execution also requires `AWS_ALLOWED_ACCOUNT_IDS`; S3 additionally requires `AWS_ALLOWED_BUCKET_PREFIX`. The ingest endpoint is push-only, capped at 100 findings per request, deduplicated, and stores only selected fields. Avoid enabling Security Hub, GuardDuty, CloudTrail Lake, or data-event trails solely for this feature without checking current charges. CloudTrail Event History can be used manually for management-event context without adding a trail, but it does not provide all data-access events. Set AWS Budgets alerts and review Cost Explorer before any AWS expansion. Budget alerts are not a hard credit cap.
 
 ## Security fundamentals and references
 

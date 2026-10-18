@@ -7,6 +7,7 @@ from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.ml.incident_classifier import LabeledCase, train_incident_classifier
 from app.ml.training_examples import load_training_cases, make_lab_incidents, seed_training_incidents
+from app.repositories.model_registry_repository import ModelRegistryRepository
 from app.models.incident import Incident
 from app.models.training_incident import TrainingIncident
 
@@ -50,3 +51,24 @@ async def test_synthetic_cases_cannot_be_activated():
             ) for row in rows]
         with pytest.raises(ValueError, match="approved, non-synthetic"):
             await train_incident_classifier(cases, None, get_settings(), activate=True)
+
+
+@pytest.mark.anyio
+async def test_local_shadow_training_preserves_dataset_provenance(tmp_path):
+    rows = make_lab_incidents()
+    cases = [LabeledCase(
+        incident_id=row.scenario_id, account_id=row.account_id, observed_at=row.observed_at,
+        labels=set(row.labels), events=row.events, source_kind=row.source_kind, review_status=row.review_status,
+    ) for row in rows]
+    provenance = {"kind": "s3", "uri": "s3://soc-reviewed/training/lab.jsonl", "sha256": "a" * 64}
+    settings = get_settings().model_copy(update={"ml_artifact_dir": str(tmp_path)})
+    async with SessionLocal() as session:
+        repository = ModelRegistryRepository(session)
+        registry = await train_incident_classifier(
+            cases, repository, settings, dataset_provenance=provenance,
+        )
+        await session.commit()
+        assert registry.status == "shadow"
+        assert registry.training_metadata["dataset_provenance"] == provenance
+        assert Path(registry.artifact_path).exists()
+        assert await repository.get_active(registry.model_name) is None

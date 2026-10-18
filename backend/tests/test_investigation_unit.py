@@ -4,6 +4,7 @@ import json
 from types import SimpleNamespace
 
 import pytest
+from pydantic import ValidationError
 
 from app.core.config import get_settings
 from app.investigation.context import InvestigationContextBuilder
@@ -26,8 +27,31 @@ from app.schemas.investigation import (
     InvestigationNarrative,
     InvestigationResult,
     Recommendation,
+    PlannedRecommendation,
     RiskAnalysis,
 )
+
+
+def test_new_recommendations_require_a_complete_remediation_plan():
+    legacy = {
+        "title": "Restrict access", "priority": "high", "rationale": "Reported exposure",
+        "actions": ["Restrict the affected access path"], "evidence_refs": ["evidence:123"],
+    }
+    assert Recommendation.model_validate(legacy).remediation_plan is None
+    with pytest.raises(ValidationError):
+        PlannedRecommendation.model_validate(legacy)
+    complete = {**legacy, "remediation_plan": {
+        "verification_steps": ["Confirm the affected rule and intended access"],
+        "change_steps": ["Restrict the unauthorized path"],
+        "validation_steps": ["Check required traffic succeeds and unauthorized traffic is blocked"],
+        "rollback_steps": ["Restore approved configuration if required traffic fails"],
+        "impact": "Existing connections may be interrupted",
+    }}
+    assert PlannedRecommendation.model_validate(complete).remediation_plan.validation_steps
+    with pytest.raises(ValidationError):
+        PlannedRecommendation.model_validate({
+            **complete, "remediation_plan": {**complete["remediation_plan"], "validation_steps": []},
+        })
 
 
 class FakeResponses:
